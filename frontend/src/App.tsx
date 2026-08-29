@@ -7,6 +7,7 @@ import Expenses from './pages/Expenses';
 import Family from './pages/Family';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
 import './App.css';
 
@@ -24,14 +25,19 @@ function App() {
           path="/signup"
           element={isAuthenticated ? <Navigate to="/dashboard" /> : <Signup />}
         />
+
+        {/* Protected Routes with Layout */}
         <Route element={<PrivateRoute />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/expenses" element={<Expenses />} />
-          <Route path="/family" element={<Family />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/expenses" element={<Expenses />} />
+            <Route path="/family" element={<Family />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
         </Route>
-        <Route path="/" element={<Navigate to="/dashboard" />} />
+
+        <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} />
       </Routes>
     </Router>
   );
