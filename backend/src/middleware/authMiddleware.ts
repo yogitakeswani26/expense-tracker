@@ -3,12 +3,13 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
 import { AuthRequest, AuthPayload } from '../types';
 
-export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) {
-      return res.status(401).json({ success: false, error: { code: 'NO_TOKEN', message: 'No token provided' } });
+      res.status(401).json({ success: false, error: { code: 'NO_TOKEN', message: 'No token provided' } });
+      return;
     }
 
     const decoded = jwt.verify(token, config.jwt.secret) as AuthPayload;
@@ -16,7 +17,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     req.tokenPayload = decoded;
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, error: { code: 'INVALID_TOKEN', message: 'Invalid token' } });
+    res.status(401).json({ success: false, error: { code: 'INVALID_TOKEN', message: 'Invalid token' } });
   }
 };
 
