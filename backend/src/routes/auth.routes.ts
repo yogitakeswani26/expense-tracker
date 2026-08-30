@@ -21,7 +21,11 @@ router.post('/login', async (req: AuthRequest, res: Response) => {
     const result = await authService.login(email, password);
     res.json({ success: true, data: result });
   } catch (error: any) {
-    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+    console.error('Login error:', error);
+    const statusCode = error.statusCode || 500;
+    const code = error.code || 'LOGIN_ERROR';
+    const message = error.message || 'Login failed';
+    res.status(statusCode).json({ success: false, error: { code, message } });
   }
 });
 
