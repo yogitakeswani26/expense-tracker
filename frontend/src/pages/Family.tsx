@@ -94,20 +94,29 @@ export default function Family() {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-bold mb-4">Family Members</h2>
               <div className="space-y-4">
-                {family?.members.map((member) => (
-                  <div key={member.userId} className="flex justify-between items-center p-4 border rounded-lg">
-                    <div>
-                      <div className="font-semibold">{member.userId}</div>
-                      <div className="text-sm text-gray-600">Role: {member.role}</div>
+                {family?.members.map((member) => {
+                  // Get user name if populated, else use email as fallback
+                  const memberName = typeof member.userId === 'object'
+                    ? member.userId.name || member.userId.email
+                    : member.userId;
+                  const memberEmail = typeof member.userId === 'object' ? member.userId.email : '';
+
+                  return (
+                    <div key={member.userId._id || member.userId} className="flex justify-between items-center p-4 border rounded-lg">
+                      <div>
+                        <div className="font-semibold">{memberName}</div>
+                        {memberEmail && <div className="text-sm text-gray-500">{memberEmail}</div>}
+                        <div className="text-sm text-gray-600">Role: <span className="font-medium capitalize">{member.role}</span></div>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveMember(typeof member.userId === 'object' ? member.userId._id : member.userId)}
+                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        Remove
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleRemoveMember(member.userId)}
-                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

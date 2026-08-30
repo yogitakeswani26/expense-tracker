@@ -6,7 +6,7 @@ import { DashboardSummary } from '../types';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
-  const [summary, setS] = useState<DashboardSummary | null>(null);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [trends, setTrends] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -28,7 +28,7 @@ export default function Dashboard() {
         api.get(`/analytics/${familyId}/trends?months=6`),
       ]);
 
-      setS(summaryRes.data.data);
+      setSummary(summaryRes.data.data);
       setTrends(trendsRes.data.data);
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Failed to load dashboard');
