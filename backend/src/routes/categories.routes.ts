@@ -1,11 +1,14 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { Category } from '../models/Category';
-import { protect } from '../middleware/authMiddleware';
+import { authMiddleware } from '../middleware/authMiddleware';
+import { AuthRequest } from '../types';
 
 const router = Router();
 
+router.use(authMiddleware);
+
 // Get all main categories with subcategories
-router.get('/', protect, async (_req: Request, res: Response) => {
+router.get('/', async (_req: AuthRequest, res: Response) => {
   try {
     const mainCategories = await Category.find({ level: 1, isActive: true })
       .sort({ order: 1 })
@@ -52,7 +55,7 @@ router.get('/', protect, async (_req: Request, res: Response) => {
 });
 
 // Get flat list of all categories for simple dropdowns
-router.get('/flat', protect, async (_req: Request, res: Response) => {
+router.get('/flat', async (_req: AuthRequest, res: Response) => {
   try {
     const categories = await Category.find({ isActive: true })
       .sort({ level: 1, order: 1 })
@@ -85,7 +88,7 @@ router.get('/flat', protect, async (_req: Request, res: Response) => {
 });
 
 // Get single category with all details
-router.get('/:id', protect, async (req: Request, res: Response) => {
+router.get('/:id', async (req: AuthRequest, res: Response): Promise<any> => {
   try {
     const category = await Category.findById(req.params.id).lean();
 
@@ -96,12 +99,12 @@ router.get('/:id', protect, async (req: Request, res: Response) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: category,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: { code: 'CATEGORY_FETCH_ERROR', message: 'Failed to fetch category' },
     });
