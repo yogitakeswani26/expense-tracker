@@ -7,6 +7,15 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+router.get('/', async (req: AuthRequest, res: Response) => {
+  try {
+    const families = await familyService.getUserFamilies(req.user!.userId);
+    res.json({ success: true, data: families });
+  } catch (error: any) {
+    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+  }
+});
+
 router.get('/:familyId', async (req: AuthRequest, res: Response) => {
   try {
     const family = await familyService.getFamily(req.params.familyId as string);

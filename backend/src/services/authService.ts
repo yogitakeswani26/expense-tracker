@@ -87,7 +87,9 @@ export class AuthService {
       throw new AppError('USER_NOT_FOUND', 'User not found', 404);
     }
 
-    const tokens = generateTokens(payload);
+    // Remove exp and iat from payload before generating new tokens
+    const { exp, iat, ...cleanPayload } = payload as any;
+    const tokens = generateTokens(cleanPayload);
     return { tokens };
   }
 

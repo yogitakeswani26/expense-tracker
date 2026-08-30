@@ -5,6 +5,13 @@ import { Transaction } from '../models/Transaction';
 import { AppError } from '../middleware/errorHandler';
 
 export class FamilyService {
+  async getUserFamilies(userId: string) {
+    const families = await Family.find({
+      'members.userId': userId,
+    }).populate('members.userId');
+    return families;
+  }
+
   async getFamily(familyId: string) {
     const family = await Family.findById(familyId).populate('members.userId');
     if (!family) {

@@ -84,7 +84,6 @@ userSchema.methods.comparePassword = async function (password: string): Promise<
   return bcrypt.compare(password, this.password);
 };
 
-userSchema.index({ email: 1 });
 userSchema.index({ familyIds: 1 });
 
 export const User = mongoose.model<IUserDoc>('User', userSchema);
