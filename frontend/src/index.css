@@ -212,11 +212,15 @@ p {
 
 /* Input Fields */
 input, textarea, select {
-  @apply w-full px-4 py-3 rounded-lg border-2 border-var(--gray-light) transition-all duration-300;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 2px solid var(--gray-light);
   background: var(--white);
   color: var(--text);
   font-family: inherit;
   font-size: 1rem;
+  transition: all 0.3s ease;
 }
 
 input::placeholder, textarea::placeholder {
