@@ -2,6 +2,7 @@ import app from './app';
 import { config } from './config/env';
 import { connectDB } from './config/database';
 import { seedDemoUser } from './utils/seed';
+import { seedCategories } from './seeds/categories.seed';
 
 const startServer = async () => {
   try {
@@ -10,6 +11,9 @@ const startServer = async () => {
 
     // Seed demo user if needed
     await seedDemoUser();
+
+    // Seed categories
+    await seedCategories();
 
     // Start Express server
     app.listen(config.port, () => {

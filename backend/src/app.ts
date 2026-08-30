@@ -8,6 +8,7 @@ import expenseRoutes from './routes/expenses.routes';
 import familyRoutes from './routes/family.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import exportRoutes from './routes/export.routes';
+import categoriesRoutes from './routes/categories.routes';
 import { requestLogger } from './middleware/requestLogger';
 import { authRateLimiter, apiRateLimiter } from './middleware/rateLimiter';
 import { sanitizer } from './middleware/sanitizer';
@@ -57,6 +58,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/families', familyRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/categories', categoriesRoutes);
 
 // 404 Handler
 app.use((_req: Request, res: Response) => {
