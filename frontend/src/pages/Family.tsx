@@ -127,16 +127,35 @@ export default function Family() {
                 {Object.entries(settlements).length === 0 ? (
                   <p className="text-gray-600">All settled up!</p>
                 ) : (
-                  Object.entries(settlements).map(([user, amounts]: any) => (
-                    <div key={user} className="text-sm">
-                      {Object.entries(amounts).map(([creditor, amount]: any) => (
-                        <div key={creditor} className="flex justify-between p-2 bg-gray-50 rounded">
-                          <span>{user} → {creditor}</span>
-                          <span className="font-semibold">₹{amount}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ))
+                  Object.entries(settlements).map(([userId, amounts]: any) => {
+                    // Find the user object to get the name
+                    const user = family?.members.find(m =>
+                      (typeof m.userId === 'object' ? m.userId._id : m.userId) === userId
+                    );
+                    const userName = user && typeof user.userId === 'object'
+                      ? user.userId.name || user.userId.email
+                      : userId;
+
+                    return (
+                      <div key={userId} className="text-sm">
+                        {Object.entries(amounts).map(([creditorId, amount]: any) => {
+                          const creditor = family?.members.find(m =>
+                            (typeof m.userId === 'object' ? m.userId._id : m.userId) === creditorId
+                          );
+                          const creditorName = creditor && typeof creditor.userId === 'object'
+                            ? creditor.userId.name || creditor.userId.email
+                            : creditorId;
+
+                          return (
+                            <div key={creditorId} className="flex justify-between p-2 bg-gray-50 rounded">
+                              <span className="font-medium">{userName} → {creditorName}</span>
+                              <span className="font-semibold text-red-600">₹{amount.toFixed(2)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

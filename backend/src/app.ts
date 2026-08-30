@@ -8,11 +8,15 @@ import expenseRoutes from './routes/expenses.routes';
 import familyRoutes from './routes/family.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import exportRoutes from './routes/export.routes';
+import { requestLogger } from './middleware/requestLogger';
+import { authRateLimiter, apiRateLimiter } from './middleware/rateLimiter';
+import { sanitizer } from './middleware/sanitizer';
 
 const app: Application = express();
 
 // Middleware
 app.use(helmet());
+app.use(requestLogger);
 
 const allowedOrigins = [
   config.frontend.url,
@@ -28,6 +32,12 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(sanitizer);
+
+// Apply rate limiting to auth endpoints (stricter)
+app.use('/api/auth', authRateLimiter);
+// Apply rate limiting to all other endpoints
+app.use('/api', apiRateLimiter);
 
 // Health check
 app.get('/health', (_req: Request, res: Response) => {
