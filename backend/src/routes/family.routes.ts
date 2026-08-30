@@ -7,6 +7,19 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, currency = 'INR', timezone = 'Asia/Kolkata' } = req.body;
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Family name is required' } });
+    }
+    const family = await familyService.createFamily(req.user!.userId, name, currency, timezone);
+    res.status(201).json({ success: true, data: family });
+  } catch (error: any) {
+    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+  }
+});
+
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const families = await familyService.getUserFamilies(req.user!.userId);
@@ -27,7 +40,7 @@ router.get('/:familyId', async (req: AuthRequest, res: Response) => {
 
 router.put('/:familyId', async (req: AuthRequest, res: Response) => {
   try {
-    const family = await familyService.updateFamily(req.params.familyId as string, req.body);
+    const family = await familyService.updateFamily(req.params.familyId as string, req.user!.userId, req.body);
     res.json({ success: true, data: family });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
@@ -36,8 +49,25 @@ router.put('/:familyId', async (req: AuthRequest, res: Response) => {
 
 router.post('/:familyId/members', async (req: AuthRequest, res: Response) => {
   try {
-    const { userId, role } = req.body;
-    const family = await familyService.addMember(req.params.familyId as string, userId, role);
+    const { email, userId, role = 'member' } = req.body;
+
+    // Support both email and userId for adding members
+    let memberUserId = userId;
+
+    if (email && !userId) {
+      // Look up user by email
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (!user) {
+        return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User with this email not found' } });
+      }
+      memberUserId = user._id.toString();
+    }
+
+    if (!memberUserId) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Either email or userId is required' } });
+    }
+
+    const family = await familyService.addMember(req.params.familyId as string, req.user!.userId, memberUserId, role);
     res.status(201).json({ success: true, data: family });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
@@ -46,7 +76,7 @@ router.post('/:familyId/members', async (req: AuthRequest, res: Response) => {
 
 router.delete('/:familyId/members/:userId', async (req: AuthRequest, res: Response) => {
   try {
-    const family = await familyService.removeMember(req.params.familyId as string, req.params.userId as string);
+    const family = await familyService.removeMember(req.params.familyId as string, req.user!.userId, req.params.userId as string);
     res.json({ success: true, data: family });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
@@ -56,7 +86,10 @@ router.delete('/:familyId/members/:userId', async (req: AuthRequest, res: Respon
 router.put('/:familyId/members/:userId/role', async (req: AuthRequest, res: Response) => {
   try {
     const { role } = req.body;
-    const family = await familyService.updateMemberRole(req.params.familyId as string, req.params.userId as string, role);
+    if (!role || !['owner', 'member', 'viewer'].includes(role)) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_ROLE', message: 'Invalid role' } });
+    }
+    const family = await familyService.updateMemberRole(req.params.familyId as string, req.user!.userId, req.params.userId as string, role);
     res.json({ success: true, data: family });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });

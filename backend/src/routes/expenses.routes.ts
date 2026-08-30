@@ -2,10 +2,35 @@ import express, { Response } from 'express';
 import { expenseService } from '../services/expenseService';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { AuthRequest } from '../types';
+import { Family } from '../models/Family';
+import { AppError } from '../middleware/errorHandler';
 
 const router = express.Router();
 
 router.use(authMiddleware);
+
+// Middleware to check family membership
+const checkFamilyMembership = async (req: AuthRequest, res: Response, next: any) => {
+  try {
+    const familyId = req.params.familyId;
+    const family = await Family.findById(familyId);
+
+    if (!family) {
+      return res.status(404).json({ success: false, error: { code: 'FAMILY_NOT_FOUND', message: 'Family not found' } });
+    }
+
+    const isMember = family.members.some(m => m.userId.toString() === req.user!.userId);
+    if (!isMember) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this family' } });
+    }
+
+    next();
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'ERROR', message: error.message } });
+  }
+};
+
+router.use('/:familyId', checkFamilyMembership);
 
 router.post('/:familyId', async (req: AuthRequest, res: Response) => {
   try {

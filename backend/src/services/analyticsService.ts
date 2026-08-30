@@ -13,7 +13,9 @@ export class AnalyticsService {
     });
 
     const totalSpent = thisMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
-    const averageDaily = thisMonthExpenses.length > 0 ? totalSpent / thisMonthExpenses.length : 0;
+    // Fix: Calculate average daily by dividing by days in month, not expense count
+    const daysInMonth = monthEnd.getDate();
+    const averageDaily = totalSpent / daysInMonth;
 
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);

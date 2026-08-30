@@ -1,4 +1,5 @@
 export interface Notification {
+  id: string;
   userId: string;
   type: 'budget_alert' | 'settlement_reminder' | 'recurring_expense' | 'bill_due';
   title: string;
@@ -14,6 +15,7 @@ const notifications: Notification[] = [];
 export class NotificationService {
   async sendBudgetAlert(userId: string, category: string, spent: number, limit: number) {
     const notification: Notification = {
+      id: `${userId}-${Date.now()}-${Math.random()}`,
       userId,
       type: 'budget_alert',
       title: `⚠️ Budget Alert: ${category}`,
@@ -24,12 +26,12 @@ export class NotificationService {
     };
 
     notifications.push(notification);
-    console.log(`Budget alert sent to ${userId} for ${category}`);
     return notification;
   }
 
   async sendSettlementReminder(userId: string, fromUser: string, amount: number) {
     const notification: Notification = {
+      id: `${userId}-${Date.now()}-${Math.random()}`,
       userId,
       type: 'settlement_reminder',
       title: `💰 Settlement Reminder`,
@@ -40,12 +42,12 @@ export class NotificationService {
     };
 
     notifications.push(notification);
-    console.log(`Settlement reminder sent to ${userId}`);
     return notification;
   }
 
   async sendRecurringExpenseNotification(userId: string, expenseDescription: string, amount: number) {
     const notification: Notification = {
+      id: `${userId}-${Date.now()}-${Math.random()}`,
       userId,
       type: 'recurring_expense',
       title: `📅 Recurring Expense`,
@@ -56,12 +58,12 @@ export class NotificationService {
     };
 
     notifications.push(notification);
-    console.log(`Recurring expense notification sent to ${userId}`);
     return notification;
   }
 
   async sendBillDueReminder(userId: string, description: string, dueDate: Date) {
     const notification: Notification = {
+      id: `${userId}-${Date.now()}-${Math.random()}`,
       userId,
       type: 'bill_due',
       title: `📋 Bill Due Reminder`,
@@ -72,7 +74,6 @@ export class NotificationService {
     };
 
     notifications.push(notification);
-    console.log(`Bill reminder sent to ${userId}`);
     return notification;
   }
 
@@ -83,17 +84,20 @@ export class NotificationService {
       .slice(0, 50); // Last 50 notifications
   }
 
-  async markAsRead(notificationId: number) {
-    if (notificationId >= 0 && notificationId < notifications.length) {
-      notifications[notificationId].read = true;
+  async markAsRead(notificationId: string) {
+    const notification = notifications.find(n => n.id === notificationId);
+    if (notification) {
+      notification.read = true;
     }
   }
 
   async clearNotifications(userId: string) {
-    const index = notifications.findIndex(n => n.userId === userId);
-    if (index > -1) {
-      notifications.splice(index, 1);
-    }
+    // Remove ALL notifications for the user
+    const beforeLength = notifications.length;
+    const filtered = notifications.filter(n => n.userId !== userId);
+    const afterLength = filtered.length;
+    // Replace the array
+    notifications.splice(0, notifications.length, ...filtered);
   }
 
   // Email notification stub (implement with SendGrid/AWS SES)

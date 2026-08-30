@@ -5,6 +5,25 @@ import { Transaction } from '../models/Transaction';
 import { AppError } from '../middleware/errorHandler';
 
 export class FamilyService {
+  async createFamily(userId: string, name: string, currency: string = 'INR', timezone: string = 'Asia/Kolkata') {
+    const family = new Family({
+      name,
+      ownerId: userId,
+      members: [{ userId: userId as any, role: 'owner', joinedAt: new Date() }],
+      currency,
+      timezone,
+    });
+    await family.save();
+
+    const user = await User.findById(userId);
+    if (user) {
+      user.familyIds.push(family._id);
+      await user.save();
+    }
+
+    return family.populate('members.userId');
+  }
+
   async getUserFamilies(userId: string) {
     const families = await Family.find({
       'members.userId': userId,
@@ -20,18 +39,35 @@ export class FamilyService {
     return family;
   }
 
-  async updateFamily(familyId: string, updates: any) {
-    const family = await Family.findByIdAndUpdate(familyId, updates, { new: true }).populate('members.userId');
-    if (!family) {
-      throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
-    }
-    return family;
-  }
-
-  async addMember(familyId: string, userId: string, role: 'member' | 'viewer' = 'member') {
+  async updateFamily(familyId: string, currentUserId: string, updates: any) {
     const family = await Family.findById(familyId);
     if (!family) {
       throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
+    }
+
+    // AUTHORIZATION: Check if current user is family owner
+    if (family.ownerId.toString() !== currentUserId) {
+      throw new AppError('UNAUTHORIZED', 'Only family owner can update family', 403);
+    }
+
+    // VALIDATION: Don't allow updating members array directly
+    if (updates.members || updates.ownerId) {
+      throw new AppError('INVALID_UPDATE', 'Use dedicated endpoints to update members', 400);
+    }
+
+    const updated = await Family.findByIdAndUpdate(familyId, updates, { new: true }).populate('members.userId');
+    return updated;
+  }
+
+  async addMember(familyId: string, currentUserId: string, userId: string, role: 'member' | 'viewer' = 'member') {
+    const family = await Family.findById(familyId);
+    if (!family) {
+      throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
+    }
+
+    // AUTHORIZATION: Check if current user is family owner
+    if (family.ownerId.toString() !== currentUserId) {
+      throw new AppError('UNAUTHORIZED', 'Only family owner can add members', 403);
     }
 
     const memberExists = family.members.some(m => m.userId.toString() === userId);
@@ -39,22 +75,35 @@ export class FamilyService {
       throw new AppError('MEMBER_EXISTS', 'Member already in family', 400);
     }
 
+    // VALIDATION: Check if user exists
+    const userToAdd = await User.findById(userId);
+    if (!userToAdd) {
+      throw new AppError('USER_NOT_FOUND', 'User to add does not exist', 404);
+    }
+
     family.members.push({ userId: userId as any, role, joinedAt: new Date() });
     await family.save();
 
-    const user = await User.findById(userId);
-    if (user) {
-      user.familyIds.push(family._id);
-      await user.save();
-    }
+    userToAdd.familyIds.push(family._id);
+    await userToAdd.save();
 
     return family.populate('members.userId');
   }
 
-  async removeMember(familyId: string, userId: string) {
+  async removeMember(familyId: string, currentUserId: string, userId: string) {
     const family = await Family.findById(familyId);
     if (!family) {
       throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
+    }
+
+    // AUTHORIZATION: Check if current user is family owner
+    if (family.ownerId.toString() !== currentUserId) {
+      throw new AppError('UNAUTHORIZED', 'Only family owner can remove members', 403);
+    }
+
+    // VALIDATION: Can't remove owner
+    if (family.ownerId.toString() === userId) {
+      throw new AppError('INVALID_OPERATION', 'Cannot remove family owner', 400);
     }
 
     family.members = family.members.filter(m => m.userId.toString() !== userId);
@@ -69,10 +118,15 @@ export class FamilyService {
     return family.populate('members.userId');
   }
 
-  async updateMemberRole(familyId: string, userId: string, role: 'owner' | 'member' | 'viewer') {
+  async updateMemberRole(familyId: string, currentUserId: string, userId: string, role: 'owner' | 'member' | 'viewer') {
     const family = await Family.findById(familyId);
     if (!family) {
       throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
+    }
+
+    // AUTHORIZATION: Check if current user is family owner
+    if (family.ownerId.toString() !== currentUserId) {
+      throw new AppError('UNAUTHORIZED', 'Only family owner can change member roles', 403);
     }
 
     const member = family.members.find(m => m.userId.toString() === userId);
