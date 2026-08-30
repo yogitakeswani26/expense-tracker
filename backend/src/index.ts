@@ -1,11 +1,15 @@
 import app from './app';
 import { config } from './config/env';
 import { connectDB } from './config/database';
+import { seedDemoUser } from './utils/seed';
 
 const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
+
+    // Seed demo user if needed
+    await seedDemoUser();
 
     // Start Express server
     app.listen(config.port, () => {
