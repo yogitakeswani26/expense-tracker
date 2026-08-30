@@ -4,7 +4,7 @@
   "description": "Smart family expense tracking and management system",
   "private": true,
   "scripts": {
-    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "install-all": "npm install && cd backend && npm install --legacy-peer-deps && cd ../frontend && npm install",
     "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "dev:backend": "npm run dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend",
