@@ -1,18 +1,29 @@
 import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { useAuthStore } from '../stores/authStore';
-import { Expense, Category } from '../types';
+import { Expense } from '../types';
+import CategorySelector from '../components/CategorySelector';
+
+interface CategoryData {
+  _id: string;
+  name: string;
+  emoji: string;
+  level: 1 | 2 | 3;
+  children?: CategoryData[];
+}
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [allCategories, setAllCategories] = useState<CategoryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showCategorySelector, setShowCategorySelector] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedCategoryName, setSelectedCategoryName] = useState('');
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
-    category: 'Food',
+    categoryId: '',
     tags: '',
     date: new Date().toISOString().split('T')[0],
   });
@@ -44,19 +55,12 @@ export default function Expenses() {
 
   const fetchCategories = async () => {
     try {
-      const res = await api.get(`/expenses/${familyId}/categories`);
+      const res = await api.get('/categories');
       const categoriesData = res.data.data;
-      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+      setAllCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (err: any) {
       const errorMsg = err.response?.data?.error?.message || 'Failed to load categories';
       console.error('Categories error:', errorMsg);
-      // Set default categories as fallback
-      setCategories([
-        { _id: 'Food', name: 'Food', icon: '🍔' },
-        { _id: 'Travel', name: 'Travel', icon: '✈️' },
-        { _id: 'Shopping', name: 'Shopping', icon: '🛍️' },
-        { _id: 'Bills', name: 'Bills', icon: '📄' },
-      ]);
     }
   };
 
@@ -64,11 +68,16 @@ export default function Expenses() {
     e.preventDefault();
     setError('');
 
+    if (!formData.categoryId) {
+      setError('Please select a category');
+      return;
+    }
+
     try {
       const payload = {
         description: formData.description,
         amount: parseFloat(formData.amount),
-        category: formData.category,
+        categoryId: formData.categoryId,
         tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
         date: new Date(formData.date),
       };
@@ -79,9 +88,11 @@ export default function Expenses() {
         await api.post(`/expenses/${familyId}`, payload);
       }
 
-      setFormData({ description: '', amount: '', category: 'Food', tags: '', date: new Date().toISOString().split('T')[0] });
+      setFormData({ description: '', amount: '', categoryId: '', tags: '', date: new Date().toISOString().split('T')[0] });
+      setSelectedCategoryName('');
       setEditingId(null);
       setShowModal(false);
+      setShowCategorySelector(false);
       fetchExpenses();
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Failed to save expense');
@@ -102,12 +113,19 @@ export default function Expenses() {
     setFormData({
       description: expense.description,
       amount: expense.amount.toString(),
-      category: expense.category,
+      categoryId: expense.category,
       tags: expense.tags.join(', '),
       date: new Date(expense.date).toISOString().split('T')[0],
     });
+    setSelectedCategoryName(expense.category);
     setEditingId(expense._id);
     setShowModal(true);
+  };
+
+  const handleCategorySelect = (categoryId: string, categoryName: string) => {
+    setFormData({ ...formData, categoryId });
+    setSelectedCategoryName(categoryName);
+    setShowCategorySelector(false);
   };
 
   return (
@@ -132,72 +150,81 @@ export default function Expenses() {
         {/* Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-96 overflow-y-auto">
               <h2 className="text-2xl font-bold mb-4">{editingId ? 'Edit Expense' : 'Add Expense'}</h2>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <input
-                  type="text"
-                  placeholder="Description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                />
+              {error && <div className="mb-3 p-2 bg-red-50 border border-red-200 text-red-700 rounded text-sm">{error}</div>}
 
-                <input
-                  type="number"
-                  placeholder="Amount (₹)"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                />
+              {!showCategorySelector ? (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
 
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  {categories.map((cat) => (
-                    <option key={cat._id} value={cat.name}>
-                      {cat.icon} {cat.name}
-                    </option>
-                  ))}
-                </select>
+                  <input
+                    type="number"
+                    placeholder="Amount (₹)"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
 
-                <input
-                  type="text"
-                  placeholder="Tags (comma-separated)"
-                  value={formData.tags}
-                  onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-
-                <div className="flex gap-4">
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                  >
-                    Save
-                  </button>
                   <button
                     type="button"
-                    onClick={() => setShowModal(false)}
-                    className="flex-1 px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition"
+                    onClick={() => setShowCategorySelector(true)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-left bg-white hover:bg-blue-50 transition font-semibold"
                   >
-                    Cancel
+                    {selectedCategoryName ? `✓ ${selectedCategoryName}` : '📁 Select Category'}
                   </button>
-                </div>
-              </form>
+
+                  <input
+                    type="text"
+                    placeholder="Tags (comma-separated)"
+                    value={formData.tags}
+                    onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+
+                  <div className="flex gap-4">
+                    <button
+                      type="submit"
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowModal(false);
+                        setShowCategorySelector(false);
+                      }}
+                      className="flex-1 px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <CategorySelector
+                  value={formData.categoryId}
+                  onChange={handleCategorySelect}
+                  onClose={() => setShowCategorySelector(false)}
+                />
+              )}
             </div>
           </div>
         )}
