@@ -8,12 +8,21 @@ const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
+    console.log('✅ Database connected');
 
     // Seed demo user if needed
-    await seedDemoUser();
+    try {
+      await seedDemoUser();
+    } catch (error) {
+      console.error('⚠️ Demo user seeding error:', error);
+    }
 
     // Seed categories
-    await seedCategories();
+    try {
+      await seedCategories();
+    } catch (error) {
+      console.error('⚠️ Categories seeding error:', error);
+    }
 
     // Start Express server
     app.listen(config.port, () => {
