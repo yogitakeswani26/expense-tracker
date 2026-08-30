@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.routes';
 import expenseRoutes from './routes/expenses.routes';
 import familyRoutes from './routes/family.routes';
 import analyticsRoutes from './routes/analytics.routes';
+import exportRoutes from './routes/export.routes';
 
 const app: Application = express();
 
@@ -37,6 +38,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/families', familyRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/export', exportRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {

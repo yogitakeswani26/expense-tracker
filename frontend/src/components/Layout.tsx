@@ -21,6 +21,7 @@ export default function Layout() {
     { path: '/expenses', label: 'Expenses', icon: '💸' },
     { path: '/family', label: 'Family', icon: '👥' },
     { path: '/analytics', label: 'Analytics', icon: '📈' },
+    { path: '/export', label: 'Export', icon: '📥' },
     { path: '/settings', label: 'Settings', icon: '⚙️' },
   ];
 
