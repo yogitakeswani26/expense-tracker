@@ -26,7 +26,7 @@ export default function Login() {
         data.data.user,
         data.data.tokens.accessToken,
         data.data.tokens.refreshToken,
-        'default-family'
+        data.data.user.familyId
       );
       navigate('/dashboard');
     } catch (err: any) {

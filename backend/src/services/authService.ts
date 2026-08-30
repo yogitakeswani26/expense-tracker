@@ -45,7 +45,15 @@ export class AuthService {
       familyId: family._id.toString(),
     });
 
-    return { user: { id: user._id, email: user.email, name: user.name }, tokens };
+    return {
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        familyId: family._id.toString()
+      },
+      tokens
+    };
   }
 
   async login(email: string, password: string) {
@@ -73,7 +81,15 @@ export class AuthService {
       familyId: family._id.toString(),
     });
 
-    return { user: { id: user._id, email: user.email, name: user.name }, tokens };
+    return {
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        familyId: family._id.toString()
+      },
+      tokens
+    };
   }
 
   async refreshToken(refreshToken: string) {

@@ -44,7 +44,7 @@ export default function Signup() {
         data.data.user,
         data.data.tokens.accessToken,
         data.data.tokens.refreshToken,
-        'default-family'
+        data.data.user.familyId
       );
 
       navigate('/dashboard');
