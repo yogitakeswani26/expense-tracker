@@ -13,8 +13,14 @@ const startServer = async () => {
     await connectDB();
     console.log('✅ Database connected');
 
-    // Skip seeding for now - causes issues
-    console.log('⏭️ Skipping seeding (will add back later)');
+    // Seed categories
+    console.log('🌱 Seeding categories...');
+    try {
+      await seedCategories();
+      console.log('✅ Categories seeded');
+    } catch (error) {
+      console.log('⚠️ Categories seed failed:', error instanceof Error ? error.message : 'Unknown error');
+    }
 
     // Start Express server
     const server = app.listen(config.port, () => {

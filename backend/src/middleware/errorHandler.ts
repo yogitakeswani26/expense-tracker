@@ -13,6 +13,7 @@ class AppError extends Error {
 
 export const errorHandler = (err: any, _req: AuthRequest, res: Response, _next: NextFunction) => {
   // Error logging would go to logging service (Sentry, etc.) in production
+  console.error('ERROR:', err);
 
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({

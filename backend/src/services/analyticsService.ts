@@ -30,7 +30,7 @@ export class AnalyticsService {
     return {
       totalSpent,
       averageDaily,
-      comparison: lastMonthTotal > 0 ? ((totalSpent - lastMonthTotal) / lastMonthTotal * 100).toFixed(2) : 0,
+      comparison: lastMonthTotal > 0 ? ((totalSpent - lastMonthTotal) / lastMonthTotal * 100).toFixed(2) : '0',
       categoryBreakdown,
       transactionCount: thisMonthExpenses.length,
     };
@@ -43,6 +43,7 @@ export class AnalyticsService {
     });
 
     const breakdown: any = {};
+    const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
 
     expenses.forEach(expense => {
       if (!breakdown[expense.category]) {
@@ -56,7 +57,7 @@ export class AnalyticsService {
       category,
       total: data.total,
       count: data.count,
-      percentage: (data.total / expenses.reduce((sum, e) => sum + e.amount, 0) * 100).toFixed(2),
+      percentage: totalAmount > 0 ? (data.total / totalAmount * 100).toFixed(2) : '0',
     }));
   }
 
@@ -100,7 +101,7 @@ export class AnalyticsService {
 
         const spent = expenses.reduce((sum, e) => sum + e.amount, 0);
         const remaining = Math.max(0, budget.limit - spent);
-        const percentage = (spent / budget.limit * 100).toFixed(2);
+        const percentage = budget.limit > 0 ? (spent / budget.limit * 100).toFixed(2) : '0';
 
         return {
           category: budget.category,
@@ -108,7 +109,7 @@ export class AnalyticsService {
           spent,
           remaining,
           percentage: parseFloat(percentage),
-          status: spent > budget.limit ? 'exceeded' : spent / budget.limit > 0.8 ? 'warning' : 'ok',
+          status: budget.limit === 0 ? 'invalid' : spent > budget.limit ? 'exceeded' : spent / budget.limit > 0.8 ? 'warning' : 'ok',
         };
       }),
     );

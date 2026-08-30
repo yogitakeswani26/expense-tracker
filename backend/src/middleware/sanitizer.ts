@@ -24,8 +24,11 @@ export const sanitizer = (req: Request, _res: Response, next: NextFunction) => {
   if (req.body) {
     req.body = sanitizeValue(req.body);
   }
+  // Sanitize query parameters in-place since req.query is read-only
   if (req.query) {
-    req.query = sanitizeValue(req.query);
+    for (const [key, val] of Object.entries(req.query)) {
+      req.query[key] = sanitizeValue(val);
+    }
   }
   if (req.params) {
     req.params = sanitizeValue(req.params);

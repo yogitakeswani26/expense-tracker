@@ -19,9 +19,6 @@ export default function Login() {
     try {
       const { data } = await api.post('/auth/login', { email, password });
 
-      localStorage.setItem('accessToken', data.data.tokens.accessToken);
-      localStorage.setItem('refreshToken', data.data.tokens.refreshToken);
-
       setAuth(
         data.data.user,
         data.data.tokens.accessToken,

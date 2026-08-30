@@ -113,7 +113,7 @@ export default function Expenses() {
     setFormData({
       description: expense.description,
       amount: expense.amount.toString(),
-      categoryId: expense.category,
+      categoryId: (expense as any).categoryId || expense.category,
       tags: expense.tags.join(', '),
       date: new Date(expense.date).toISOString().split('T')[0],
     });
@@ -136,7 +136,8 @@ export default function Expenses() {
           <button
             onClick={() => {
               setEditingId(null);
-              setFormData({ description: '', amount: '', category: 'Food', tags: '', date: new Date().toISOString().split('T')[0] });
+              setFormData({ description: '', amount: '', categoryId: '', tags: '', date: new Date().toISOString().split('T')[0] });
+              setSelectedCategoryName('');
               setShowModal(true);
             }}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
@@ -171,6 +172,8 @@ export default function Expenses() {
                     placeholder="Amount (₹)"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    min="0"
+                    step="0.01"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     required
                   />

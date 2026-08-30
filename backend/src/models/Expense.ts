@@ -48,7 +48,10 @@ const expenseSchema = new Schema<IExpenseDoc>({
 });
 
 expenseSchema.index({ familyId: 1, date: -1 });
+expenseSchema.index({ familyId: 1, categoryId: 1, date: -1 });
 expenseSchema.index({ paidBy: 1 });
+expenseSchema.index({ createdBy: 1 });
+expenseSchema.index({ categoryId: 1 });
 expenseSchema.index({ category: 1 });
 
 export const Expense = mongoose.model<IExpenseDoc>('Expense', expenseSchema);

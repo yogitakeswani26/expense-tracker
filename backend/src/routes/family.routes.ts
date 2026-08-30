@@ -17,7 +17,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const family = await familyService.createFamily(req.user!.userId, name, currency, timezone);
     res.status(201).json({ success: true, data: family });
   } catch (error: any) {
-    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+    res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });
   }
 });
 
@@ -26,16 +26,20 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     const families = await familyService.getUserFamilies(req.user!.userId);
     res.json({ success: true, data: families });
   } catch (error: any) {
-    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+    res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });
   }
 });
 
 router.get('/:familyId', async (req: AuthRequest, res: Response) => {
   try {
     const family = await familyService.getFamily(req.params.familyId as string);
+    const isMember = family.members.some((m: any) => m.userId.toString() === req.user!.userId);
+    if (!isMember) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this family' } });
+    }
     res.json({ success: true, data: family });
   } catch (error: any) {
-    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+    res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });
   }
 });
 
@@ -44,7 +48,7 @@ router.put('/:familyId', async (req: AuthRequest, res: Response) => {
     const family = await familyService.updateFamily(req.params.familyId as string, req.user!.userId, req.body);
     res.json({ success: true, data: family });
   } catch (error: any) {
-    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+    res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });
   }
 });
 
@@ -71,7 +75,7 @@ router.post('/:familyId/members', async (req: AuthRequest, res: Response) => {
     const family = await familyService.addMember(req.params.familyId as string, req.user!.userId, memberUserId, role);
     res.status(201).json({ success: true, data: family });
   } catch (error: any) {
-    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+    res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });
   }
 });
 
@@ -80,7 +84,7 @@ router.delete('/:familyId/members/:userId', async (req: AuthRequest, res: Respon
     const family = await familyService.removeMember(req.params.familyId as string, req.user!.userId, req.params.userId as string);
     res.json({ success: true, data: family });
   } catch (error: any) {
-    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+    res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });
   }
 });
 
@@ -93,16 +97,21 @@ router.put('/:familyId/members/:userId/role', async (req: AuthRequest, res: Resp
     const family = await familyService.updateMemberRole(req.params.familyId as string, req.user!.userId, req.params.userId as string, role);
     res.json({ success: true, data: family });
   } catch (error: any) {
-    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+    res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });
   }
 });
 
 router.get('/:familyId/settlements', async (req: AuthRequest, res: Response) => {
   try {
+    const family = await familyService.getFamily(req.params.familyId as string);
+    const isMember = family.members.some((m: any) => m.userId.toString() === req.user!.userId);
+    if (!isMember) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this family' } });
+    }
     const settlements = await familyService.getWhoOwesWho(req.params.familyId as string);
     res.json({ success: true, data: settlements });
   } catch (error: any) {
-    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+    res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });
   }
 });
 

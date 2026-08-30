@@ -5,8 +5,6 @@ import { AuthRequest } from '../types';
 
 const router = Router();
 
-router.use(authMiddleware);
-
 // Get all main categories with subcategories
 router.get('/', async (_req: AuthRequest, res: Response): Promise<any> => {
   try {
@@ -46,7 +44,8 @@ router.get('/', async (_req: AuthRequest, res: Response): Promise<any> => {
       success: true,
       data: categoriesWithSubs,
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Category fetch error:', error);
     return res.status(500).json({
       success: false,
       error: { code: 'CATEGORY_FETCH_ERROR', message: 'Failed to fetch categories' },
