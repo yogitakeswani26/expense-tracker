@@ -6,32 +6,30 @@ import { seedCategories } from './seeds/categories.seed';
 
 const startServer = async () => {
   try {
+    console.log('🚀 Starting server...');
+
     // Connect to MongoDB
+    console.log('📡 Connecting to database...');
     await connectDB();
     console.log('✅ Database connected');
 
-    // Seed demo user if needed
-    try {
-      await seedDemoUser();
-    } catch (error) {
-      console.error('⚠️ Demo user seeding error:', error);
-    }
-
-    // Seed categories
-    try {
-      await seedCategories();
-    } catch (error) {
-      console.error('⚠️ Categories seeding error:', error);
-    }
+    // Skip seeding for now - causes issues
+    console.log('⏭️ Skipping seeding (will add back later)');
 
     // Start Express server
-    app.listen(config.port, () => {
+    const server = app.listen(config.port, () => {
       console.log(`🚀 Server running on port ${config.port}`);
       console.log(`📁 Environment: ${config.nodeEnv}`);
+      console.log(`✅ Ready to accept requests`);
+    });
+
+    // Handle server errors
+    server.on('error', (error) => {
+      console.error('❌ Server error:', error);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    setTimeout(() => process.exit(1), 1000);
   }
 };
 

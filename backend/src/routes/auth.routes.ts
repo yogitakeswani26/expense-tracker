@@ -17,11 +17,28 @@ router.post('/signup', async (req: AuthRequest, res: Response) => {
 
 router.post('/login', async (req: AuthRequest, res: Response) => {
   try {
+    console.log('[LOGIN] Attempt with email:', req.body.email);
     const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'Email and password required' }
+      });
+    }
+
     const result = await authService.login(email, password);
+    console.log('[LOGIN] Success for:', email);
     res.json({ success: true, data: result });
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error('[LOGIN] Error:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      statusCode: error.statusCode,
+      stack: error.stack?.split('\n').slice(0, 3).join('\n')
+    });
+
     const statusCode = error.statusCode || 500;
     const code = error.code || 'LOGIN_ERROR';
     const message = error.message || 'Login failed';
