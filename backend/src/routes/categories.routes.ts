@@ -8,7 +8,7 @@ const router = Router();
 router.use(authMiddleware);
 
 // Get all main categories with subcategories
-router.get('/', async (_req: AuthRequest, res: Response) => {
+router.get('/', async (_req: AuthRequest, res: Response): Promise<any> => {
   try {
     const mainCategories = await Category.find({ level: 1, isActive: true })
       .sort({ order: 1 })
@@ -42,12 +42,12 @@ router.get('/', async (_req: AuthRequest, res: Response) => {
       })
     );
 
-    res.json({
+    return res.json({
       success: true,
       data: categoriesWithSubs,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: { code: 'CATEGORY_FETCH_ERROR', message: 'Failed to fetch categories' },
     });
@@ -55,7 +55,7 @@ router.get('/', async (_req: AuthRequest, res: Response) => {
 });
 
 // Get flat list of all categories for simple dropdowns
-router.get('/flat', async (_req: AuthRequest, res: Response) => {
+router.get('/flat', async (_req: AuthRequest, res: Response): Promise<any> => {
   try {
     const categories = await Category.find({ isActive: true })
       .sort({ level: 1, order: 1 })
@@ -75,12 +75,12 @@ router.get('/flat', async (_req: AuthRequest, res: Response) => {
       })
     );
 
-    res.json({
+    return res.json({
       success: true,
       data: enriched,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: { code: 'CATEGORY_FETCH_ERROR', message: 'Failed to fetch categories' },
     });
