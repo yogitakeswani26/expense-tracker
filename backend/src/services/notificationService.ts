@@ -1,6 +1,3 @@
-import { User } from '../models/User';
-import { Expense } from '../models/Expense';
-
 export interface Notification {
   userId: string;
   type: 'budget_alert' | 'settlement_reminder' | 'recurring_expense' | 'bill_due';
@@ -104,7 +101,7 @@ export class NotificationService {
     email: string,
     subject: string,
     message: string,
-    type: 'budget_alert' | 'settlement_reminder' | 'recurring_expense'
+    _type: 'budget_alert' | 'settlement_reminder' | 'recurring_expense'
   ) {
     // TODO: Implement with email service (SendGrid, AWS SES, etc.)
     console.log(`Email to ${email}: ${subject}`);

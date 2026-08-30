@@ -1,5 +1,4 @@
 import { Expense } from '../models/Expense';
-import { User } from '../models/User';
 
 export class ExportService {
   async exportExpensesCSV(familyId: string, startDate?: Date, endDate?: Date) {

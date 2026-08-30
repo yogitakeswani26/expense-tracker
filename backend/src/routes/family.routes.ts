@@ -9,7 +9,7 @@ router.use(authMiddleware);
 
 router.get('/:familyId', async (req: AuthRequest, res: Response) => {
   try {
-    const family = await familyService.getFamily(req.params.familyId);
+    const family = await familyService.getFamily(req.params.familyId as string);
     res.json({ success: true, data: family });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
@@ -18,7 +18,7 @@ router.get('/:familyId', async (req: AuthRequest, res: Response) => {
 
 router.put('/:familyId', async (req: AuthRequest, res: Response) => {
   try {
-    const family = await familyService.updateFamily(req.params.familyId, req.body);
+    const family = await familyService.updateFamily(req.params.familyId as string, req.body);
     res.json({ success: true, data: family });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
@@ -28,7 +28,7 @@ router.put('/:familyId', async (req: AuthRequest, res: Response) => {
 router.post('/:familyId/members', async (req: AuthRequest, res: Response) => {
   try {
     const { userId, role } = req.body;
-    const family = await familyService.addMember(req.params.familyId, userId, role);
+    const family = await familyService.addMember(req.params.familyId as string, userId, role);
     res.status(201).json({ success: true, data: family });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
@@ -37,7 +37,7 @@ router.post('/:familyId/members', async (req: AuthRequest, res: Response) => {
 
 router.delete('/:familyId/members/:userId', async (req: AuthRequest, res: Response) => {
   try {
-    const family = await familyService.removeMember(req.params.familyId, req.params.userId);
+    const family = await familyService.removeMember(req.params.familyId as string, req.params.userId as string);
     res.json({ success: true, data: family });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
@@ -47,7 +47,7 @@ router.delete('/:familyId/members/:userId', async (req: AuthRequest, res: Respon
 router.put('/:familyId/members/:userId/role', async (req: AuthRequest, res: Response) => {
   try {
     const { role } = req.body;
-    const family = await familyService.updateMemberRole(req.params.familyId, req.params.userId, role);
+    const family = await familyService.updateMemberRole(req.params.familyId as string, req.params.userId as string, role);
     res.json({ success: true, data: family });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
@@ -56,7 +56,7 @@ router.put('/:familyId/members/:userId/role', async (req: AuthRequest, res: Resp
 
 router.get('/:familyId/settlements', async (req: AuthRequest, res: Response) => {
   try {
-    const settlements = await familyService.getWhoOwesWho(req.params.familyId);
+    const settlements = await familyService.getWhoOwesWho(req.params.familyId as string);
     res.json({ success: true, data: settlements });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });

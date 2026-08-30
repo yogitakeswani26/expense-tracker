@@ -1,7 +1,6 @@
 import express, { Response } from 'express';
 import { authService } from '../services/authService';
 import { authMiddleware } from '../middleware/authMiddleware';
-import { AppError } from '../middleware/errorHandler';
 import { AuthRequest } from '../types';
 
 const router = express.Router();

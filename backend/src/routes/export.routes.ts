@@ -9,7 +9,7 @@ router.use(authMiddleware);
 
 router.get('/:familyId/csv', async (req: AuthRequest, res: Response) => {
   try {
-    const { familyId } = req.params;
+    const { familyId } = req.params as { familyId: string };
     const { startDate, endDate } = req.query;
 
     const csv = await exportService.exportExpensesCSV(
@@ -28,7 +28,7 @@ router.get('/:familyId/csv', async (req: AuthRequest, res: Response) => {
 
 router.get('/:familyId/json', async (req: AuthRequest, res: Response) => {
   try {
-    const { familyId } = req.params;
+    const { familyId } = req.params as { familyId: string };
     const { startDate, endDate } = req.query;
 
     const json = await exportService.exportExpensesJSON(
@@ -43,9 +43,9 @@ router.get('/:familyId/json', async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.get('/:familyId/monthly-report', async (req: AuthRequest, res: Response) => {
+router.get('/:familyId/monthly-report', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { familyId } = req.params;
+    const { familyId } = req.params as { familyId: string };
     const { month, year } = req.query;
 
     if (!month || !year) {
@@ -67,9 +67,9 @@ router.get('/:familyId/monthly-report', async (req: AuthRequest, res: Response) 
   }
 });
 
-router.get('/:familyId/yearly-report', async (req: AuthRequest, res: Response) => {
+router.get('/:familyId/yearly-report', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { familyId } = req.params;
+    const { familyId } = req.params as { familyId: string };
     const { year } = req.query;
 
     if (!year) {

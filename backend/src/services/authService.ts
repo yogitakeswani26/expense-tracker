@@ -8,7 +8,7 @@ export class AuthService {
   async signup(email: string, password: string, name: string) {
     const validation = signupSchema.safeParse({ email, password, name });
     if (!validation.success) {
-      throw new AppError('VALIDATION_ERROR', validation.error.errors[0].message, 400);
+      throw new AppError('VALIDATION_ERROR', validation.error.issues[0].message, 400);
     }
 
     const existingUser = await User.findOne({ email });
@@ -51,7 +51,7 @@ export class AuthService {
   async login(email: string, password: string) {
     const validation = loginSchema.safeParse({ email, password });
     if (!validation.success) {
-      throw new AppError('VALIDATION_ERROR', validation.error.errors[0].message, 400);
+      throw new AppError('VALIDATION_ERROR', validation.error.issues[0].message, 400);
     }
 
     const user = await User.findOne({ email: email.toLowerCase() });

@@ -1,6 +1,5 @@
 import { Expense } from '../models/Expense';
 import { Category } from '../models/Category';
-import { Budget } from '../models/Budget';
 import { AppError } from '../middleware/errorHandler';
 import { createExpenseSchema } from '../utils/validators';
 
@@ -8,7 +7,7 @@ export class ExpenseService {
   async createExpense(familyId: string, userId: string, data: any) {
     const validation = createExpenseSchema.safeParse(data);
     if (!validation.success) {
-      throw new AppError('VALIDATION_ERROR', validation.error.errors[0].message, 400);
+      throw new AppError('VALIDATION_ERROR', validation.error.issues[0].message, 400);
     }
 
     const expense = new Expense({
