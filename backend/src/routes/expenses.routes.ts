@@ -16,6 +16,15 @@ router.post('/:familyId', async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.get('/:familyId/categories', async (req: AuthRequest, res: Response) => {
+  try {
+    const categories = await expenseService.getCategories(req.params.familyId as string);
+    res.json({ success: true, data: categories });
+  } catch (error: any) {
+    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+  }
+});
+
 router.get('/:familyId', async (req: AuthRequest, res: Response) => {
   try {
     const result = await expenseService.getExpenses(req.params.familyId as string, req.query);
@@ -47,15 +56,6 @@ router.delete('/:familyId/:expenseId', async (req: AuthRequest, res: Response) =
   try {
     const result = await expenseService.deleteExpense(req.params.familyId as string, req.params.expenseId as string);
     res.json({ success: true, data: result });
-  } catch (error: any) {
-    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
-  }
-});
-
-router.get('/:familyId/categories', async (req: AuthRequest, res: Response) => {
-  try {
-    const categories = await expenseService.getCategories(req.params.familyId as string);
-    res.json({ success: true, data: categories });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
   }

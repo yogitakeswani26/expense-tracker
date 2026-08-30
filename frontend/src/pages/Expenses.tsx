@@ -29,10 +29,14 @@ export default function Expenses() {
 
   const fetchExpenses = async () => {
     try {
+      setError('');
       const res = await api.get(`/expenses/${familyId}`);
-      setExpenses(res.data.data.expenses || []);
+      const { expenses = [] } = res.data.data;
+      setExpenses(Array.isArray(expenses) ? expenses : []);
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Failed to load expenses');
+      const errorMsg = err.response?.data?.error?.message || 'Failed to load expenses';
+      setError(errorMsg);
+      console.error('Expenses error:', errorMsg);
     } finally {
       setLoading(false);
     }
@@ -41,9 +45,18 @@ export default function Expenses() {
   const fetchCategories = async () => {
     try {
       const res = await api.get(`/expenses/${familyId}/categories`);
-      setCategories(res.data.data);
-    } catch (err) {
-      console.error('Failed to load categories');
+      const categoriesData = res.data.data;
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error?.message || 'Failed to load categories';
+      console.error('Categories error:', errorMsg);
+      // Set default categories as fallback
+      setCategories([
+        { _id: 'Food', name: 'Food', icon: '🍔' },
+        { _id: 'Travel', name: 'Travel', icon: '✈️' },
+        { _id: 'Shopping', name: 'Shopping', icon: '🛍️' },
+        { _id: 'Bills', name: 'Bills', icon: '📄' },
+      ]);
     }
   };
 

@@ -21,7 +21,7 @@ export class FamilyService {
   }
 
   async updateFamily(familyId: string, updates: any) {
-    const family = await Family.findByIdAndUpdate(familyId, updates, { new: true });
+    const family = await Family.findByIdAndUpdate(familyId, updates, { new: true }).populate('members.userId');
     if (!family) {
       throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
     }
@@ -66,7 +66,7 @@ export class FamilyService {
       await user.save();
     }
 
-    return family;
+    return family.populate('members.userId');
   }
 
   async updateMemberRole(familyId: string, userId: string, role: 'owner' | 'member' | 'viewer') {
