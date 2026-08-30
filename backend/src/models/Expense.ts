@@ -6,6 +6,7 @@ export interface IExpenseDoc extends Document {
   amount: number;
   currency: string;
   category: string;
+  categoryId?: mongoose.Types.ObjectId;
   tags: string[];
   paidBy: mongoose.Types.ObjectId;
   date: Date;
@@ -25,6 +26,7 @@ const expenseSchema = new Schema<IExpenseDoc>({
   amount: { type: Number, required: true, min: 0 },
   currency: { type: String, default: 'INR' },
   category: { type: String, required: true },
+  categoryId: { type: Schema.Types.ObjectId, ref: 'Category' },
   tags: [String],
   paidBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   date: { type: Date, required: true },

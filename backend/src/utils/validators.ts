@@ -22,7 +22,8 @@ export const updateProfileSchema = z.object({
 export const createExpenseSchema = z.object({
   description: z.string().min(1, 'Description required'),
   amount: z.number().positive('Amount must be positive'),
-  category: z.string().min(1),
+  category: z.string().min(1).optional(),
+  categoryId: z.string().optional(),
   tags: z.array(z.string()).optional(),
   date: z.string().or(z.date()),
   splits: z.array(z.object({
@@ -32,7 +33,10 @@ export const createExpenseSchema = z.object({
   isRecurring: z.boolean().optional(),
   recurrencePattern: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
   paymentMethod: z.string().optional(),
-});
+}).refine(
+  (data) => data.category || data.categoryId,
+  { message: 'Either category or categoryId is required', path: ['category'] }
+);
 
 export const createFamilySchema = z.object({
   name: z.string().min(1, 'Family name required'),

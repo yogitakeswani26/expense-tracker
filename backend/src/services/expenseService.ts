@@ -10,16 +10,36 @@ export class ExpenseService {
       throw new AppError('VALIDATION_ERROR', validation.error.issues[0].message, 400);
     }
 
-    const expense = new Expense({
+    let expenseData: any = {
       familyId,
       ...validation.data,
       paidBy: userId,
       createdBy: userId,
       date: new Date(validation.data.date),
-    });
+    };
 
+    // Handle categoryId mapping
+    if (data.categoryId) {
+      try {
+        const category = await Category.findById(data.categoryId);
+        if (category) {
+          expenseData.categoryId = data.categoryId;
+          expenseData.category = category.name;
+        } else {
+          throw new AppError('CATEGORY_NOT_FOUND', 'Category not found', 404);
+        }
+      } catch (error: any) {
+        if (error instanceof AppError) throw error;
+        throw new AppError('CATEGORY_ERROR', 'Failed to load category', 400);
+      }
+    } else if (!data.category) {
+      // Fallback to default category if neither is provided
+      expenseData.category = 'Miscellaneous';
+    }
+
+    const expense = new Expense(expenseData);
     await expense.save();
-    return expense.populate(['paidBy', 'splits.userId']);
+    return expense.populate(['paidBy', 'splits.userId', 'categoryId']);
   }
 
   async getExpenses(familyId: string, filters: any = {}) {
@@ -46,7 +66,7 @@ export class ExpenseService {
     const skip = (page - 1) * limit;
 
     const expenses = await Expense.find(query)
-      .populate(['paidBy', 'splits.userId', 'createdBy'])
+      .populate(['paidBy', 'splits.userId', 'createdBy', 'categoryId'])
       .sort({ date: -1 })
       .skip(skip)
       .limit(limit);
@@ -57,7 +77,7 @@ export class ExpenseService {
   }
 
   async getExpenseById(familyId: string, expenseId: string) {
-    const expense = await Expense.findOne({ _id: expenseId, familyId }).populate(['paidBy', 'splits.userId']);
+    const expense = await Expense.findOne({ _id: expenseId, familyId }).populate(['paidBy', 'splits.userId', 'categoryId']);
     if (!expense) {
       throw new AppError('EXPENSE_NOT_FOUND', 'Expense not found', 404);
     }
@@ -65,11 +85,29 @@ export class ExpenseService {
   }
 
   async updateExpense(familyId: string, expenseId: string, data: any) {
+    let updateData: any = { ...data, updatedAt: new Date() };
+
+    // Handle categoryId mapping
+    if (data.categoryId) {
+      try {
+        const category = await Category.findById(data.categoryId);
+        if (category) {
+          updateData.categoryId = data.categoryId;
+          updateData.category = category.name;
+        } else {
+          throw new AppError('CATEGORY_NOT_FOUND', 'Category not found', 404);
+        }
+      } catch (error: any) {
+        if (error instanceof AppError) throw error;
+        throw new AppError('CATEGORY_ERROR', 'Failed to load category', 400);
+      }
+    }
+
     const expense = await Expense.findOneAndUpdate(
       { _id: expenseId, familyId },
-      { ...data, updatedAt: new Date() },
+      updateData,
       { new: true },
-    ).populate(['paidBy', 'splits.userId']);
+    ).populate(['paidBy', 'splits.userId', 'categoryId']);
 
     if (!expense) {
       throw new AppError('EXPENSE_NOT_FOUND', 'Expense not found', 404);
