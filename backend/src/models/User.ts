@@ -73,15 +73,15 @@ const userSchema = new Schema<IUserDoc>({
   },
 });
 
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+userSchema.pre('save', async function (done) {
+  if (!this.isModified('password')) return done();
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     this.updatedAt = new Date();
-    next();
+    done();
   } catch (error) {
-    next(error as Error);
+    done(error as Error);
   }
 });
 

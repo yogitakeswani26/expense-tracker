@@ -49,10 +49,11 @@ router.get('/:familyId/monthly-report', async (req: AuthRequest, res: Response):
     const { month, year } = req.query;
 
     if (!month || !year) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: { code: 'VALIDATION_ERROR', message: 'month and year are required' },
       });
+      return;
     }
 
     const report = await exportService.generateMonthlyReport(
@@ -73,10 +74,11 @@ router.get('/:familyId/yearly-report', async (req: AuthRequest, res: Response): 
     const { year } = req.query;
 
     if (!year) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: { code: 'VALIDATION_ERROR', message: 'year is required' },
       });
+      return;
     }
 
     const report = await exportService.generateYearlyReport(familyId, parseInt(year as string));

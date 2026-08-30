@@ -5,11 +5,11 @@ import { AuthPayload } from '../types';
 export const generateTokens = (payload: Omit<AuthPayload, never>) => {
   const accessToken = jwt.sign(payload, config.jwt.secret, {
     expiresIn: config.jwt.accessExpiry,
-  });
+  } as any);
 
   const refreshToken = jwt.sign(payload, config.jwt.secret, {
     expiresIn: config.jwt.refreshExpiry,
-  });
+  } as any);
 
   return { accessToken, refreshToken };
 };
