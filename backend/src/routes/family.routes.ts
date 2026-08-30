@@ -2,6 +2,7 @@ import express, { Response } from 'express';
 import { familyService } from '../services/familyService';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { AuthRequest } from '../types';
+import { User } from '../models/User';
 
 const router = express.Router();
 

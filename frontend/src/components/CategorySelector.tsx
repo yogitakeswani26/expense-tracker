@@ -26,14 +26,72 @@ export default function CategorySelector({ value, onChange, onClose }: CategoryS
     fetchCategories();
   }, []);
 
+  const fallbackCategories: Category[] = [
+    {
+      _id: 'entertainment',
+      name: 'Entertainment',
+      emoji: '🎬',
+      level: 1,
+      children: [
+        { _id: 'streaming', name: 'Streaming Services', emoji: '🎪', level: 2, children: [
+          { _id: 'netflix', name: 'Netflix', emoji: '🎥', level: 3 },
+          { _id: 'hotstar', name: 'Hotstar', emoji: '⭐', level: 3 },
+          { _id: 'prime', name: 'Prime Video', emoji: '🎁', level: 3 },
+          { _id: 'spotify', name: 'Spotify', emoji: '🎵', level: 3 },
+        ]},
+      ],
+    },
+    {
+      _id: 'food',
+      name: 'Food & Dining',
+      emoji: '🍔',
+      level: 1,
+      children: [
+        { _id: 'groceries', name: 'Groceries', emoji: '🛒', level: 2 },
+        { _id: 'restaurants', name: 'Restaurants', emoji: '🍽️', level: 2 },
+      ],
+    },
+    {
+      _id: 'transport',
+      name: 'Transportation',
+      emoji: '🚗',
+      level: 1,
+      children: [
+        { _id: 'fuel', name: 'Fuel', emoji: '⛽', level: 2 },
+        { _id: 'maintenance', name: 'Maintenance', emoji: '🔧', level: 2 },
+      ],
+    },
+    {
+      _id: 'utilities',
+      name: 'Utilities & Bills',
+      emoji: '💡',
+      level: 1,
+      children: [
+        { _id: 'electricity', name: 'Electricity', emoji: '💡', level: 2 },
+        { _id: 'water', name: 'Water', emoji: '💧', level: 2 },
+      ],
+    },
+    {
+      _id: 'housing',
+      name: 'Rent & Housing',
+      emoji: '🏠',
+      level: 1,
+      children: [
+        { _id: 'rent', name: 'Rent', emoji: '🏘️', level: 2 },
+        { _id: 'maintenance-home', name: 'Maintenance', emoji: '🔨', level: 2 },
+      ],
+    },
+  ];
+
   const fetchCategories = async () => {
     try {
       const res = await api.get('/categories');
       const data = res.data.data;
-      setCategories(Array.isArray(data) ? data : []);
+      setCategories(Array.isArray(data) ? data : fallbackCategories);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+      console.error('Failed to fetch categories, using fallback:', error);
+      setCategories(fallbackCategories);
       setLoading(false);
     }
   };
