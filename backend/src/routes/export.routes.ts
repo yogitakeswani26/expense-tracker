@@ -36,11 +36,29 @@ router.get('/:familyId/csv', async (req: AuthRequest, res: Response) => {
     const { familyId } = req.params as { familyId: string };
     const { startDate, endDate } = req.query;
 
-    const csv = await exportService.exportExpensesCSV(
-      familyId,
-      startDate ? new Date(startDate as string) : undefined,
-      endDate ? new Date(endDate as string) : undefined
-    );
+    // VALIDATION: Date range validation
+    let start: Date | undefined;
+    let end: Date | undefined;
+
+    if (startDate) {
+      start = new Date(startDate as string);
+      if (isNaN(start.getTime())) {
+        return res.status(400).json({ success: false, error: { code: 'INVALID_DATE', message: 'Invalid startDate format' } });
+      }
+    }
+
+    if (endDate) {
+      end = new Date(endDate as string);
+      if (isNaN(end.getTime())) {
+        return res.status(400).json({ success: false, error: { code: 'INVALID_DATE', message: 'Invalid endDate format' } });
+      }
+    }
+
+    if (start && end && start >= end) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_DATE_RANGE', message: 'startDate must be before endDate' } });
+    }
+
+    const csv = await exportService.exportExpensesCSV(familyId, start, end);
 
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="expenses-${familyId}-${Date.now()}.csv"`);
@@ -55,11 +73,29 @@ router.get('/:familyId/json', async (req: AuthRequest, res: Response) => {
     const { familyId } = req.params as { familyId: string };
     const { startDate, endDate } = req.query;
 
-    const json = await exportService.exportExpensesJSON(
-      familyId,
-      startDate ? new Date(startDate as string) : undefined,
-      endDate ? new Date(endDate as string) : undefined
-    );
+    // VALIDATION: Date range validation
+    let start: Date | undefined;
+    let end: Date | undefined;
+
+    if (startDate) {
+      start = new Date(startDate as string);
+      if (isNaN(start.getTime())) {
+        return res.status(400).json({ success: false, error: { code: 'INVALID_DATE', message: 'Invalid startDate format' } });
+      }
+    }
+
+    if (endDate) {
+      end = new Date(endDate as string);
+      if (isNaN(end.getTime())) {
+        return res.status(400).json({ success: false, error: { code: 'INVALID_DATE', message: 'Invalid endDate format' } });
+      }
+    }
+
+    if (start && end && start >= end) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_DATE_RANGE', message: 'startDate must be before endDate' } });
+    }
+
+    const json = await exportService.exportExpensesJSON(familyId, start, end);
 
     res.json({ success: true, data: json });
   } catch (error: any) {

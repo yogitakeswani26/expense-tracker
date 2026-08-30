@@ -46,7 +46,21 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res: Response) =
 
 router.put('/profile', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const user = await authService.updateProfile(req.user!.userId, req.body);
+    // VALIDATION: Only allow specific fields to be updated
+    const allowedFields = ['name', 'currency', 'timezone', 'language'];
+    const updates: any = {};
+
+    for (const field of allowedFields) {
+      if (field in req.body) {
+        updates[field] = req.body[field];
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, error: { code: 'NO_UPDATES', message: 'No valid fields to update' } });
+    }
+
+    const user = await authService.updateProfile(req.user!.userId, updates);
     res.json({ success: true, data: user });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });

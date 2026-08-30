@@ -35,8 +35,14 @@ export class ExpenseService {
     if (filters.minAmount) query.amount = { ...query.amount, $gte: filters.minAmount };
     if (filters.maxAmount) query.amount = { ...query.amount, $lte: filters.maxAmount };
 
-    const page = filters.page || 1;
-    const limit = filters.limit || 20;
+    // VALIDATION: Ensure page and limit are valid positive integers
+    let page = parseInt(filters.page as string) || 1;
+    let limit = parseInt(filters.limit as string) || 20;
+
+    // Constraints to prevent DoS
+    page = Math.max(1, page);
+    limit = Math.min(100, Math.max(1, limit)); // Max 100 items per page
+
     const skip = (page - 1) * limit;
 
     const expenses = await Expense.find(query)

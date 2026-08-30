@@ -63,6 +63,12 @@ router.get('/:familyId/spending/comparison', async (req: AuthRequest, res: Respo
   try {
     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const endDate = req.query.endDate ? new Date(req.query.endDate as string) : new Date();
+
+    // VALIDATION: Ensure startDate < endDate
+    if (startDate >= endDate) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_DATE_RANGE', message: 'startDate must be before endDate' } });
+    }
+
     const comparison = await analyticsService.getSpenderComparison(req.params.familyId as string, startDate, endDate);
     res.json({ success: true, data: comparison });
   } catch (error: any) {
