@@ -13,8 +13,17 @@ const app: Application = express();
 
 // Middleware
 app.use(helmet());
+
+const allowedOrigins = [
+  config.frontend.url,
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://localhost:5173',
+  /vercel\.app$/, // Allow all Vercel domains
+];
+
 app.use(cors({
-  origin: config.frontend.url,
+  origin: allowedOrigins,
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
