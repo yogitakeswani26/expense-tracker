@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "projects": [
+    {
+      "name": "frontend",
+      "rootDirectory": "frontend",
+      "buildCommand": "npm run build",
+      "outputDirectory": "dist",
+      "env": [
+        "VITE_API_URL"
+      ]
+    }
+  ]
+}
