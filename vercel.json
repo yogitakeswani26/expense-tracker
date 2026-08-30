@@ -1,7 +1,10 @@
 {
-  "buildCommand": "cd frontend && npm run build",
+  "buildCommand": "cd frontend && npm ci && npm run build",
   "outputDirectory": "frontend/dist",
-  "installCommand": "npm install && cd frontend && npm install",
+  "installCommand": "cd frontend && npm ci",
+  "env": {
+    "VITE_API_URL": "https://expense-tracker-api-ktkh.onrender.com"
+  },
   "routes": [
     {
       "src": "/(.*)",
