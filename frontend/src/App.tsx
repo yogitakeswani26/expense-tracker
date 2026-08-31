@@ -11,6 +11,8 @@ import Export from './pages/Export';
 import ProfilePage from './pages/ProfilePage';
 import FamilyManagement from './pages/FamilyManagement';
 import BillSplitting from './pages/BillSplitting';
+import ExportAdvanced from './pages/ExportAdvanced';
+import AnalyticsAdvanced from './pages/AnalyticsAdvanced';
 import AdvancedLayout from './components/AdvancedLayout';
 import PrivateRoute from './components/PrivateRoute';
 import './styles/global-advanced.css';
@@ -38,8 +40,8 @@ function App() {
             <Route path="/family" element={<FamilyManagement />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/bill-split" element={<BillSplitting />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/export" element={<Export />} />
+            <Route path="/analytics" element={<AnalyticsAdvanced />} />
+            <Route path="/export" element={<ExportAdvanced />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
         </Route>

@@ -145,7 +145,19 @@ export class FamilyService {
     return family.populate('members.userId');
   }
 
-  async getWhoOwesWho(familyId: string) {
+  // ISSUE #4: Add userId parameter and verify authorization at service level
+  async getWhoOwesWho(familyId: string, userId: string) {
+    const family = await Family.findById(familyId);
+    if (!family) {
+      throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
+    }
+
+    // Verify user is family member
+    const isMember = family.members.some(m => m.userId.toString() === userId);
+    if (!isMember) {
+      throw new AppError('UNAUTHORIZED', 'User is not a family member', 403);
+    }
+
     const expenses = await Expense.find({
       familyId,
       splits: { $exists: true, $ne: [] },
@@ -154,14 +166,15 @@ export class FamilyService {
     const balances: any = {};
 
     expenses.forEach(expense => {
+      // ISSUE #3: Ensure consistent string conversion
       const paidBy = expense.paidBy.toString();
       if (!balances[paidBy]) balances[paidBy] = {};
 
       expense.splits?.forEach(split => {
-        const userId = split.userId.toString();
-        if (userId !== paidBy) {
-          if (!balances[userId]) balances[userId] = {};
-          balances[userId][paidBy] = (balances[userId][paidBy] || 0) + split.amount;
+        const splitUserId = split.userId.toString();
+        if (splitUserId !== paidBy) {
+          if (!balances[splitUserId]) balances[splitUserId] = {};
+          balances[splitUserId][paidBy] = (balances[splitUserId][paidBy] || 0) + split.amount;
         }
       });
     });
@@ -169,18 +182,59 @@ export class FamilyService {
     return balances;
   }
 
-  async settleTransaction(familyId: string, fromUserId: string, toUserId: string, amount: number) {
-    const transaction = new Transaction({
-      familyId,
-      fromUser: fromUserId,
-      toUser: toUserId,
-      amount,
-      status: 'settled',
-      settledAt: new Date(),
-    });
+  // ISSUE #4: Add userId parameter and verify authorization at service level
+  async getDashboardSummary(familyId: string, userId: string) {
+    const family = await Family.findById(familyId);
+    if (!family) {
+      throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
+    }
 
-    await transaction.save();
-    return transaction;
+    // Verify user is family member
+    const isMember = family.members.some(m => m.userId.toString() === userId);
+    if (!isMember) {
+      throw new AppError('UNAUTHORIZED', 'User is not a family member', 403);
+    }
+
+    // This is a placeholder - actual dashboard logic should be in analytics service
+    return { success: true };
+  }
+
+  // ISSUE #8, #10: Use MongoDB transaction for settlements
+  async settleTransaction(familyId: string, userId: string, fromUserId: string, toUserId: string, amount: number) {
+    const family = await Family.findById(familyId);
+    if (!family) {
+      throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
+    }
+
+    // Verify user is family member
+    const isMember = family.members.some(m => m.userId.toString() === userId);
+    if (!isMember) {
+      throw new AppError('UNAUTHORIZED', 'User is not a family member', 403);
+    }
+
+    // ISSUE #10: Use MongoDB session for transaction support
+    const session = await Transaction.startSession();
+    session.startTransaction();
+
+    try {
+      const transaction = new Transaction({
+        familyId,
+        fromUser: fromUserId,
+        toUser: toUserId,
+        amount,
+        status: 'settled',
+        settledAt: new Date(),
+      });
+
+      await transaction.save({ session });
+      await session.commitTransaction();
+      return transaction;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 }
 
