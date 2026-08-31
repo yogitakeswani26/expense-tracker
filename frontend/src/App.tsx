@@ -2,15 +2,15 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAuthStore } from './stores/authStore';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
-import Expenses from './pages/Expenses';
+import DashboardPro from './pages/DashboardPro';
+import ExpensesAdvanced from './pages/ExpensesAdvanced';
 import Family from './pages/Family';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import Export from './pages/Export';
-import Layout from './components/Layout';
+import AdvancedLayout from './components/AdvancedLayout';
 import PrivateRoute from './components/PrivateRoute';
-import './App.css';
+import './styles/global-advanced.css';
 
 function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -27,11 +27,11 @@ function App() {
           element={isAuthenticated ? <Navigate to="/dashboard" /> : <Signup />}
         />
 
-        {/* Protected Routes with Layout */}
+        {/* Protected Routes with Advanced Layout */}
         <Route element={<PrivateRoute />}>
-          <Route element={<Layout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/expenses" element={<Expenses />} />
+          <Route element={<AdvancedLayout />}>
+            <Route path="/dashboard" element={<DashboardPro />} />
+            <Route path="/expenses" element={<ExpensesAdvanced />} />
             <Route path="/family" element={<Family />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/export" element={<Export />} />
