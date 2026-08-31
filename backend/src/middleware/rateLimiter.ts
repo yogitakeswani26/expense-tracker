@@ -4,51 +4,95 @@ interface RequestTimestamp {
   timestamp: number;
 }
 
-interface RateLimitStore {
-  [key: string]: RequestTimestamp[];
-}
+// Use Map instead of plain object for better performance and memory efficiency
+const store = new Map<string, RequestTimestamp[]>();
 
-const store: RateLimitStore = {};
+// Cleanup configuration
+const CLEANUP_INTERVAL = 5 * 60 * 1000; // Run cleanup every 5 minutes
+const ENTRY_TTL = 15 * 60 * 1000; // Keep entries for 15 minutes max
 
-// Cleanup old entries every 5 minutes to prevent memory leak
-setInterval(() => {
+/**
+ * Automatic cleanup of old entries to prevent memory leak
+ * Runs every 5 minutes and removes entries older than 15 minutes
+ */
+const cleanupInterval = setInterval(() => {
   const now = Date.now();
-  for (const key in store) {
-    // Keep only recent timestamps (within 2 minutes)
-    store[key] = store[key].filter(req => now - req.timestamp < 2 * 60 * 1000);
-    // Delete key if empty
-    if (store[key].length === 0) {
-      delete store[key];
+  const keysToDelete: string[] = [];
+
+  for (const [key, timestamps] of store.entries()) {
+    // Filter out requests older than 15 minutes
+    const recentRequests = timestamps.filter(req => now - req.timestamp < ENTRY_TTL);
+
+    if (recentRequests.length === 0) {
+      // Mark for deletion if no recent requests
+      keysToDelete.push(key);
+    } else {
+      // Update store with filtered requests
+      store.set(key, recentRequests);
     }
   }
-}, 5 * 60 * 1000);
+
+  // Remove empty entries
+  keysToDelete.forEach(key => store.delete(key));
+}, CLEANUP_INTERVAL);
+
+/**
+ * Graceful shutdown: Clear cleanup interval
+ * Call this in your server shutdown handler
+ */
+export const stopRateLimiterCleanup = () => {
+  clearInterval(cleanupInterval);
+};
+
+/**
+ * Extract real client IP address, handling reverse proxies (Nginx, CloudFlare, etc.)
+ */
+function getClientIp(req: Request): string {
+  // Check X-Forwarded-For header first (set by reverse proxies)
+  const xForwardedFor = req.headers['x-forwarded-for'];
+  if (xForwardedFor) {
+    // Handle both string and array (depending on Express config)
+    const ip = Array.isArray(xForwardedFor)
+      ? xForwardedFor[0]
+      : xForwardedFor.split(',')[0];
+    return ip.trim();
+  }
+
+  // Fallback to req.ip (works without reverse proxy)
+  return req.ip || 'unknown';
+}
 
 /**
  * Sliding window rate limiter using timestamp tracking
- * More accurate than fixed window as it tracks actual request times
+ * More accurate than fixed window - tracks actual request times within rolling window
+ *
+ * @param windowMs - Time window in milliseconds (default: 60 seconds)
+ * @param maxRequests - Max requests allowed in window (default: 30)
  */
-export const rateLimiter = (windowMs: number = 60 * 1000, maxRequests: number = 5) => {
+export const rateLimiter = (windowMs: number = 60 * 1000, maxRequests: number = 30) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    // Get real IP (account for reverse proxies)
-    const key = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.ip || 'unknown';
+    const clientIp = getClientIp(req);
     const now = Date.now();
     const windowStart = now - windowMs;
 
-    // Initialize if first request
-    if (!store[key]) {
-      store[key] = [{ timestamp: now }];
+    // Initialize if first request from this IP
+    if (!store.has(clientIp)) {
+      store.set(clientIp, [{ timestamp: now }]);
       res.setHeader('X-RateLimit-Limit', maxRequests);
       res.setHeader('X-RateLimit-Remaining', maxRequests - 1);
       res.setHeader('X-RateLimit-Reset', new Date(now + windowMs).toISOString());
       return next();
     }
 
-    // Remove expired requests (older than window)
-    store[key] = store[key].filter(req => req.timestamp > windowStart);
+    // Get stored requests for this IP
+    let requests = store.get(clientIp) || [];
 
-    // Check if limit exceeded
-    if (store[key].length >= maxRequests) {
-      const oldestRequest = store[key][0].timestamp;
+    // Remove requests outside the current sliding window
+    requests = requests.filter(req => req.timestamp > windowStart);
+
+    // Check if rate limit is exceeded
+    if (requests.length >= maxRequests) {
+      const oldestRequest = requests[0].timestamp;
       const retryAfter = Math.ceil((oldestRequest + windowMs - now) / 1000);
 
       res.setHeader('Retry-After', retryAfter);
@@ -65,11 +109,12 @@ export const rateLimiter = (windowMs: number = 60 * 1000, maxRequests: number = 
       });
     }
 
-    // Add current request to store
-    store[key].push({ timestamp: now });
+    // Record current request
+    requests.push({ timestamp: now });
+    store.set(clientIp, requests);
 
     res.setHeader('X-RateLimit-Limit', maxRequests);
-    res.setHeader('X-RateLimit-Remaining', maxRequests - store[key].length);
+    res.setHeader('X-RateLimit-Remaining', maxRequests - requests.length);
     res.setHeader('X-RateLimit-Reset', new Date(now + windowMs).toISOString());
 
     next();
@@ -77,20 +122,20 @@ export const rateLimiter = (windowMs: number = 60 * 1000, maxRequests: number = 
 };
 
 /**
- * Auth rate limiters with different strategies
- * Signup: 10 requests per 60 seconds (account creation is slower)
- * Login: 5 requests per 60 seconds (prevent brute force)
- * Refresh: 20 requests per 60 seconds (happens in background)
+ * Auth rate limiters with less aggressive limits
+ * Signup: 10 requests per minute
+ * Login: 10 requests per minute
+ * Refresh: 30 requests per minute (higher for token refresh in background)
  */
 export const signupRateLimiter = rateLimiter(60 * 1000, 10);
-export const loginRateLimiter = rateLimiter(60 * 1000, 5);
-export const refreshRateLimiter = rateLimiter(60 * 1000, 20);
+export const loginRateLimiter = rateLimiter(60 * 1000, 10);
+export const refreshRateLimiter = rateLimiter(60 * 1000, 30);
 
 // Backwards compatibility
 export const authRateLimiter = loginRateLimiter;
 
 /**
  * API rate limiters
- * General API: 60 requests per 60 seconds
+ * General API: 30 requests per minute (less aggressive than before)
  */
-export const apiRateLimiter = rateLimiter(60 * 1000, 60);
+export const apiRateLimiter = rateLimiter(60 * 1000, 30);

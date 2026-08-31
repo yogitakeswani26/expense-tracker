@@ -24,7 +24,8 @@ const userSchema = new Schema<IUserDoc>({
     required: true,
     unique: true,
     lowercase: true,
-    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    match: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+    trim: true,
   },
   password: {
     type: String,

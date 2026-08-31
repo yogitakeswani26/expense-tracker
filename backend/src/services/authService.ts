@@ -11,49 +11,57 @@ export class AuthService {
       throw new AppError('VALIDATION_ERROR', validation.error.issues[0].message, 400);
     }
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      throw new AppError('USER_EXISTS', 'User already exists', 400);
-    }
+    const session = await User.startSession();
+    session.startTransaction();
 
-    const user = new User({
-      email: email.toLowerCase(),
-      password,
-      name,
-      isVerified: true, // Auto-verify for demo
-    });
-    await user.save();
+    try {
+      const user = new User({
+        email: email.toLowerCase(),
+        password,
+        name,
+        isVerified: true,
+      });
+      await user.save({ session });
 
-    // Create default family
-    const family = new Family({
-      name: `${name}'s Family`,
-      ownerId: user._id,
-      members: [{ userId: user._id, role: 'owner' }],
-      currency: 'INR',
-      timezone: 'Asia/Kolkata',
-    });
-    await family.save();
+      const family = new Family({
+        name: `${name}'s Family`,
+        ownerId: user._id,
+        members: [{ userId: user._id, role: 'owner' }],
+        currency: 'INR',
+        timezone: 'Asia/Kolkata',
+      });
+      await family.save({ session });
 
-    // Add family to user
-    user.familyIds = [family._id];
-    await user.save();
+      user.familyIds = [family._id];
+      await user.save({ session });
 
-    const tokens = generateTokens({
-      userId: user._id.toString(),
-      email: user.email,
-      role: 'owner',
-      familyId: family._id.toString(),
-    });
+      await session.commitTransaction();
 
-    return {
-      user: {
-        id: user._id,
+      const tokens = generateTokens({
+        userId: user._id.toString(),
         email: user.email,
-        name: user.name,
-        familyId: family._id.toString()
-      },
-      tokens
-    };
+        role: 'owner',
+        familyId: family._id.toString(),
+      });
+
+      return {
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+          familyId: family._id.toString()
+        },
+        tokens
+      };
+    } catch (error: any) {
+      await session.abortTransaction();
+      if (error.code === 11000) {
+        throw new AppError('USER_EXISTS', 'Email already registered', 409);
+      }
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 
   async login(email: string, password: string) {
@@ -93,20 +101,29 @@ export class AuthService {
   }
 
   async refreshToken(refreshToken: string) {
-    const payload = verifyToken(refreshToken);
-    if (!payload) {
+    if (!refreshToken || typeof refreshToken !== 'string') {
+      throw new AppError('INVALID_TOKEN', 'Refresh token is required', 401);
+    }
+
+    try {
+      const payload = verifyToken(refreshToken);
+      if (!payload) {
+        throw new AppError('INVALID_TOKEN', 'Token expired or invalid', 401);
+      }
+
+      const user = await User.findById(payload.userId);
+      if (!user) {
+        throw new AppError('USER_NOT_FOUND', 'User not found', 404);
+      }
+
+      const { exp, iat, ...cleanPayload } = payload as any;
+      const tokens = generateTokens(cleanPayload);
+      return { tokens };
+    } catch (error: any) {
+      if (error instanceof AppError) throw error;
+      console.error('Token refresh failed:', error.message);
       throw new AppError('INVALID_TOKEN', 'Invalid refresh token', 401);
     }
-
-    const user = await User.findById(payload.userId);
-    if (!user) {
-      throw new AppError('USER_NOT_FOUND', 'User not found', 404);
-    }
-
-    // Remove exp and iat from payload before generating new tokens
-    const { exp, iat, ...cleanPayload } = payload as any;
-    const tokens = generateTokens(cleanPayload);
-    return { tokens };
   }
 
   async getUserProfile(userId: string) {
@@ -118,7 +135,17 @@ export class AuthService {
   }
 
   async updateProfile(userId: string, updates: any) {
-    const user = await User.findByIdAndUpdate(userId, updates, { new: true });
+    // Whitelist allowed fields to prevent privilege escalation
+    const allowedFields = ['name', 'currency', 'language', 'timezone', 'avatar'];
+    const safeUpdates = Object.keys(updates)
+      .filter(key => allowedFields.includes(key))
+      .reduce((obj, key) => ({ ...obj, [key]: updates[key] }), {});
+
+    if (Object.keys(safeUpdates).length === 0) {
+      throw new AppError('NO_UPDATES', 'No valid fields to update', 400);
+    }
+
+    const user = await User.findByIdAndUpdate(userId, safeUpdates, { new: true });
     if (!user) {
       throw new AppError('USER_NOT_FOUND', 'User not found', 404);
     }
