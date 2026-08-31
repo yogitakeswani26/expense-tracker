@@ -62,9 +62,9 @@ router.get('/:familyId/csv', async (req: AuthRequest, res: Response) => {
 
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="expenses-${familyId}-${Date.now()}.csv"`);
-    res.send(csv);
+    return res.send(csv);
   } catch (error: any) {
-    res.status(400).json({ success: false, error: { code: 'EXPORT_ERROR', message: error.message } });
+    return res.status(error.statusCode || 500).json({ success: false, error: { code: 'EXPORT_ERROR', message: error.message } });
   }
 });
 
@@ -99,7 +99,7 @@ router.get('/:familyId/json', async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: json });
   } catch (error: any) {
-    res.status(400).json({ success: false, error: { code: 'EXPORT_ERROR', message: error.message } });
+    return res.status(error.statusCode || 500).json({ success: false, error: { code: 'EXPORT_ERROR', message: error.message } });
   }
 });
 
@@ -116,15 +116,32 @@ router.get('/:familyId/monthly-report', async (req: AuthRequest, res: Response):
       return;
     }
 
+    const monthNum = parseInt(month as string);
+    const yearNum = parseInt(year as string);
+
+    if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_MONTH', message: 'month must be between 1 and 12' },
+      });
+    }
+
+    if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_YEAR', message: 'year must be between 1900 and 2100' },
+      });
+    }
+
     const report = await exportService.generateMonthlyReport(
       familyId,
-      parseInt(month as string),
-      parseInt(year as string)
+      monthNum,
+      yearNum
     );
 
     res.json({ success: true, data: report });
   } catch (error: any) {
-    res.status(400).json({ success: false, error: { code: 'REPORT_ERROR', message: error.message } });
+    res.status(error.statusCode || 500).json({ success: false, error: { code: 'REPORT_ERROR', message: error.message } });
   }
 });
 
@@ -141,11 +158,19 @@ router.get('/:familyId/yearly-report', async (req: AuthRequest, res: Response): 
       return;
     }
 
-    const report = await exportService.generateYearlyReport(familyId, parseInt(year as string));
+    const yearNum = parseInt(year as string);
+    if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_YEAR', message: 'year must be between 1900 and 2100' },
+      });
+    }
+
+    const report = await exportService.generateYearlyReport(familyId, yearNum);
 
     res.json({ success: true, data: report });
   } catch (error: any) {
-    res.status(400).json({ success: false, error: { code: 'REPORT_ERROR', message: error.message } });
+    res.status(error.statusCode || 500).json({ success: false, error: { code: 'REPORT_ERROR', message: error.message } });
   }
 });
 
