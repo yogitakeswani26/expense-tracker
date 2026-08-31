@@ -5,6 +5,7 @@ import { AuthRequest } from '../types';
 import { Family } from '../models/Family';
 import { AppError } from '../middleware/errorHandler';
 import { validateObjectId } from '../utils/idValidator';
+import { expenseWriteRateLimiter } from '../middleware/rateLimiter';
 
 const router = express.Router();
 
@@ -41,7 +42,7 @@ const checkFamilyMembership = async (req: AuthRequest, res: Response, next: any)
 
 router.use('/:familyId', checkFamilyMembership);
 
-router.post('/:familyId', async (req: AuthRequest, res: Response) => {
+router.post('/:familyId', expenseWriteRateLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const expense = await expenseService.createExpense(req.params.familyId as string, req.user!.userId, req.body);
     res.status(201).json({ success: true, data: expense });
@@ -96,7 +97,7 @@ router.get('/:familyId/:expenseId', async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.put('/:familyId/:expenseId', async (req: AuthRequest, res: Response) => {
+router.put('/:familyId/:expenseId', expenseWriteRateLimiter, async (req: AuthRequest, res: Response) => {
   try {
     // ISSUE #7: Validate ObjectIds before querying
     validateObjectId(req.params.expenseId, 'expenseId');

@@ -3,10 +3,14 @@ import { exportService } from '../services/exportService';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { AuthRequest } from '../types';
 import { Family } from '../models/Family';
+import { exportRateLimiter } from '../middleware/rateLimiter';
 
 const router = express.Router();
 
 router.use(authMiddleware);
+// Export/report generation is the most expensive read in the API (formats the
+// full dataset for a range) - throttle it tighter than general API traffic.
+router.use(exportRateLimiter);
 
 // Middleware to check family membership
 const checkFamilyMembership = async (req: AuthRequest, res: Response, next: any) => {

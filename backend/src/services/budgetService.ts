@@ -4,6 +4,7 @@ import { Budget, IBudgetDoc } from '../models/Budget';
 import { Expense } from '../models/Expense';
 import { Family } from '../models/Family';
 import { AppError } from '../middleware/errorHandler';
+import { cacheService } from './cacheService';
 
 // ============================================================================
 // VALIDATION
@@ -139,6 +140,8 @@ export class BudgetService {
       currentPeriodEnd: end,
     });
 
+    await cacheService.deleteByPrefix(cacheService.keys.budgetStatus(familyId));
+
     return this.attachStatus(budget);
   }
 
@@ -211,6 +214,8 @@ export class BudgetService {
     budget.updatedAt = new Date();
     await budget.save();
 
+    await cacheService.deleteByPrefix(cacheService.keys.budgetStatus(familyId));
+
     return this.attachStatus(budget);
   }
 
@@ -223,6 +228,8 @@ export class BudgetService {
     if (!budget) {
       throw new AppError('BUDGET_NOT_FOUND', 'Budget not found', 404);
     }
+
+    await cacheService.deleteByPrefix(cacheService.keys.budgetStatus(familyId));
 
     return { success: true };
   }

@@ -199,3 +199,22 @@ export const authRateLimiter = loginRateLimiter;
  * General API: 30 requests per minute (less aggressive than before)
  */
 export const apiRateLimiter = rateLimiter(60 * 1000, 30);
+
+/**
+ * PER-ENDPOINT RATE LIMITS
+ *
+ * The general `apiRateLimiter` above applies to every `/api/*` route as a
+ * baseline. These limiters are layered *on top of* it for specific routes
+ * whose cost profile is different from a typical CRUD read:
+ *
+ * - analyticsRateLimiter: aggregation pipelines scan/group large amounts of
+ *   data - cap dashboard polling so it can't starve the connection pool.
+ * - exportRateLimiter: CSV/JSON/report generation streams and formats the
+ *   full dataset for a range - the most expensive read in the API.
+ * - expenseWriteRateLimiter: applied to POST/PUT on expenses to blunt
+ *   scripted spam/duplicate-submission bursts beyond what the idempotency
+ *   layer already absorbs.
+ */
+export const analyticsRateLimiter = rateLimiter(60 * 1000, 20);
+export const exportRateLimiter = rateLimiter(60 * 1000, 10);
+export const expenseWriteRateLimiter = rateLimiter(60 * 1000, 60);

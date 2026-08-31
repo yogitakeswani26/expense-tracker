@@ -58,8 +58,10 @@ export const validateQuery = (schema: ZodSchema) => {
           },
         });
       }
-      // Replace req.query with validated data
-      req.query = validation.data;
+      // Replace req.query with validated data (Zod's coerced/defaulted types
+      // don't structurally satisfy Express's ParsedQs - safe by construction
+      // since it's this same middleware's own schema output).
+      req.query = validation.data as any;
       next();
     } catch (error) {
       res.status(500).json({

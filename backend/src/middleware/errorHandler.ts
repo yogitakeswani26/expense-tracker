@@ -49,8 +49,13 @@ interface ErrorResponse {
 export const errorHandler = (err: any, req: AuthRequest, res: Response, _next: NextFunction) => {
   // SECURITY: Sanitize error before logging to prevent sensitive data leaks
   const sanitizedError = sanitizeErrorForLogging(err);
+  // OBSERVABILITY: requestId ties this log line to the X-Request-Id header
+  // the client received, so a user-reported error ("it broke at 3:14pm")
+  // can be grepped straight out of aggregated logs (Datadog/CloudWatch/etc.)
+  // instead of guessing from timestamp + path alone.
   console.error('ERROR:', {
     ...sanitizedError,
+    requestId: req.requestId,
     path: req.path,
     method: req.method,
     userId: req.user?.userId,

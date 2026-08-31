@@ -739,6 +739,408 @@ tbody tr:hover {
   gap: 6px;
 }
 
+/* ============================================================
+   DESIGN SYSTEM EXTENSION
+   Typography utilities, button/form modifiers, and three new
+   standardized components (stat tile, chart panel, tabs,
+   dropdown). Purely additive — every selector below uses a
+   class name that isn't used anywhere else in the app, so
+   nothing above this line is affected.
+   ============================================================ */
+
+/* ===== TYPOGRAPHY UTILITIES =====
+   Opt-in heading/body scale. Apply directly (e.g. <h2 className="text-h2">)
+   rather than styling bare tags, so pages that already set their own
+   heading styles (inline or page-scoped CSS) are never overridden. */
+.text-h1 { font-size: var(--font-size-3xl); font-weight: var(--font-weight-bold); line-height: 1.2; color: var(--text-primary); margin: 0; }
+.text-h2 { font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); line-height: 1.25; color: var(--text-primary); margin: 0; }
+.text-h3 { font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); line-height: 1.3; color: var(--text-primary); margin: 0; }
+.text-h4 { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); line-height: 1.35; color: var(--text-primary); margin: 0; }
+.text-body { font-size: var(--font-size-base); font-weight: 400; color: var(--text-primary); line-height: 1.6; }
+.text-body-sm { font-size: var(--font-size-sm); font-weight: 400; color: var(--text-secondary); line-height: 1.5; }
+.text-caption { font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ===== BUTTON MODIFIERS =====
+   Combine with the existing .btn + .btn-primary/secondary/danger classes,
+   e.g. <button className="btn btn-primary btn-sm"> */
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+}
+.btn-ghost:hover {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--text-primary);
+}
+
+.btn-sm { padding: 8px 16px; font-size: 0.85rem; border-radius: var(--radius-sm); }
+.btn-lg { padding: 14px 28px; font-size: 1.05rem; }
+.btn-block { width: 100%; justify-content: center; }
+.btn-icon { padding: 10px; width: 40px; height: 40px; justify-content: center; }
+
+/* ===== FORM ENHANCEMENTS =====
+   Extend the existing .form-group / .form-label / .form-input family. */
+.form-hint {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+.form-required {
+  color: var(--danger);
+}
+
+.form-input.form-input-invalid,
+.form-select.form-input-invalid,
+.form-textarea.form-input-invalid {
+  border-color: var(--danger);
+}
+.form-input.form-input-invalid:focus,
+.form-select.form-input-invalid:focus,
+.form-textarea.form-input-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+.checkbox-field input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* ===== CARD MODIFIER =====
+   Add alongside .glass-card to disable the hover lift/glow, e.g. for
+   cards inside a dense grid where the motion is distracting. */
+.glass-card.glass-card--static {
+  animation: none;
+}
+.glass-card.glass-card--static:hover {
+  transform: none;
+  background: rgba(26, 32, 44, 0.5);
+  border-color: rgba(102, 126, 234, 0.2);
+  box-shadow: none;
+}
+
+/* ===== STAT TILE =====
+   Standardized KPI display — replaces bespoke, page-specific "stat card"
+   markup with one shared, theme-aware component. */
+.stat-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--gap-lg);
+}
+
+.stat-tile {
+  background: rgba(26, 32, 44, 0.5);
+  backdrop-filter: blur(var(--blur));
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: var(--radius-lg);
+  padding: var(--padding-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-sm);
+  transition: all var(--transition-spring);
+}
+
+.stat-tile:hover {
+  border-color: var(--primary);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+
+.stat-tile-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-sm);
+}
+
+.stat-tile-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  background: rgba(102, 126, 234, 0.12);
+  flex-shrink: 0;
+}
+
+.stat-tile-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-tile-value {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  line-height: 1.15;
+}
+
+.stat-tile-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  width: fit-content;
+}
+
+.stat-tile-trend.positive { color: var(--success); }
+.stat-tile-trend.negative { color: var(--danger); }
+.stat-tile-trend.neutral { color: var(--text-tertiary); }
+
+/* ===== CHART PANEL =====
+   Standardized wrapper for recharts (or any chart) — header with
+   title/subtitle/actions, a body slot, and an optional legend row. */
+.chart-panel {
+  background: rgba(26, 32, 44, 0.5);
+  backdrop-filter: blur(var(--blur));
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: var(--radius-lg);
+  padding: var(--padding-xl);
+  transition: border-color var(--transition-base);
+}
+
+.chart-panel:hover {
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+.chart-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gap-md);
+  margin-bottom: var(--padding-lg);
+}
+
+.chart-panel-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.chart-panel-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.chart-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  flex-shrink: 0;
+}
+
+.chart-panel-body {
+  width: 100%;
+}
+
+.chart-panel-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-md);
+  margin-top: var(--padding-md);
+}
+
+.chart-panel-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.chart-panel-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chart-panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-sm);
+  padding: var(--padding-xl) 0;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+/* ===== TABS ===== */
+.ds-tabs-list {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--padding-lg);
+  overflow-x: auto;
+}
+
+.ds-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-base);
+}
+
+.ds-tab:hover {
+  color: var(--text-primary);
+}
+
+.ds-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.ds-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ds-tab-panel {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ===== DROPDOWN ===== */
+.ds-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.ds-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ds-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  padding: 6px;
+  z-index: 200;
+  animation: dsDropdownIn 0.15s ease-out;
+}
+
+.ds-dropdown-menu.align-left {
+  right: auto;
+  left: 0;
+}
+
+@keyframes dsDropdownIn {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.ds-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.ds-dropdown-item:hover:not(:disabled) {
+  background: rgba(102, 126, 234, 0.12);
+}
+
+.ds-dropdown-item.danger {
+  color: var(--danger);
+}
+.ds-dropdown-item.danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.ds-dropdown-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ds-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 4px;
+}
+
+/* ===== RESPONSIVE (design system extension) ===== */
+@media (max-width: 768px) {
+  .stat-tile-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap-md);
+  }
+
+  .stat-tile {
+    padding: var(--padding-lg);
+  }
+
+  .stat-tile-value {
+    font-size: var(--font-size-2xl);
+  }
+
+  .form-row-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-panel {
+    padding: var(--padding-lg);
+  }
+
+  .ds-dropdown-menu {
+    min-width: 180px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-tile-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .sidebar {
@@ -959,4 +1361,19 @@ tbody tr:hover {
 :root[data-theme='light'] .skeleton {
   background: linear-gradient(90deg, #e7eaf3 25%, #f6f7fb 50%, #e7eaf3 75%);
   background-size: 200% 100%;
+}
+
+/* ---- Design system extension: light-theme surfaces ---- */
+:root[data-theme='light'] .stat-tile,
+:root[data-theme='light'] .chart-panel {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(102, 126, 234, 0.15);
+}
+
+:root[data-theme='light'] .stat-tile:hover {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+:root[data-theme='light'] .ds-dropdown-menu {
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
 }

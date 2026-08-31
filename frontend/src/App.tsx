@@ -17,12 +17,16 @@ import BudgetsPage from './pages/BudgetsPage';
 import AdvancedLayout from './components/AdvancedLayout';
 import PrivateRoute from './components/PrivateRoute';
 import { ToastProvider } from './contexts/ToastContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import './styles/global-advanced.css';
 
 function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   return (
+    <ErrorBoundary name="App">
+    <ThemeProvider>
     <ToastProvider position="top-right" maxToasts={5}>
       <Router>
         <Routes>
@@ -54,6 +58,8 @@ function App() {
         </Routes>
       </Router>
     </ToastProvider>
+    </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

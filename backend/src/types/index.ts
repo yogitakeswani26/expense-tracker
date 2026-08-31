@@ -10,6 +10,7 @@ export interface AuthPayload {
 export interface AuthRequest extends Request {
   user?: AuthPayload;
   tokenPayload?: AuthPayload;
+  requestId?: string; // set by middleware/requestLogger.ts requestIdMiddleware - used for log correlation
 }
 
 export interface ApiResponse<T = any> {

@@ -3,6 +3,8 @@ import { analyticsService } from '../services/analyticsService';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { AuthRequest } from '../types';
 import { Family } from '../models/Family';
+import { cacheService, CacheTTL } from '../services/cacheService';
+import { analyticsRateLimiter } from '../middleware/rateLimiter';
 
 const router = express.Router();
 
@@ -31,9 +33,15 @@ const checkFamilyMembership = async (req: AuthRequest, res: Response, next: any)
 
 router.use('/:familyId', checkFamilyMembership);
 
+// SCALABILITY: analytics endpoints run aggregation pipelines over the whole
+// expenses collection - throttle them more tightly than plain CRUD reads so
+// a runaway dashboard poll loop can't monopolize the DB connection pool.
+router.use('/:familyId', analyticsRateLimiter);
+
 router.get('/:familyId/summary', async (req: AuthRequest, res: Response) => {
   try {
-    const summary = await analyticsService.getDashboardSummary(req.params.familyId as string);
+    const familyId = req.params.familyId as string;
+    const summary = await analyticsService.getDashboardSummary(familyId, req.user!.userId);
     res.json({ success: true, data: summary });
   } catch (error: any) {
     res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });
@@ -48,7 +56,8 @@ router.get('/:familyId/trends', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, error: { code: 'INVALID_MONTHS', message: 'months must be between 1 and 120' } });
     }
 
-    const trends = await analyticsService.getMonthlyTrends(req.params.familyId as string, months);
+    const familyId = req.params.familyId as string;
+    const trends = await analyticsService.getMonthlyTrends(familyId, req.user!.userId, months);
     res.json({ success: true, data: trends });
   } catch (error: any) {
     res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });
@@ -57,7 +66,8 @@ router.get('/:familyId/trends', async (req: AuthRequest, res: Response) => {
 
 router.get('/:familyId/budgets/status', async (req: AuthRequest, res: Response) => {
   try {
-    const status = await analyticsService.getBudgetStatus(req.params.familyId as string);
+    const familyId = req.params.familyId as string;
+    const status = await analyticsService.getBudgetStatus(familyId, req.user!.userId);
     res.json({ success: true, data: status });
   } catch (error: any) {
     res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });
@@ -74,7 +84,8 @@ router.get('/:familyId/spending/comparison', async (req: AuthRequest, res: Respo
       return res.status(400).json({ success: false, error: { code: 'INVALID_DATE_RANGE', message: 'startDate must be before endDate' } });
     }
 
-    const comparison = await analyticsService.getSpenderComparison(req.params.familyId as string, startDate, endDate);
+    // Not cached: arbitrary date ranges would create unbounded cache key cardinality.
+    const comparison = await analyticsService.getSpenderComparison(req.params.familyId as string, req.user!.userId, startDate, endDate);
     res.json({ success: true, data: comparison });
   } catch (error: any) {
     res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });

@@ -1,6 +1,6 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
+import compression from 'compression';
 import { config } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
 import authRoutes from './routes/auth.routes';
@@ -10,9 +10,12 @@ import analyticsRoutes from './routes/analytics.routes';
 import exportRoutes from './routes/export.routes';
 import categoriesRoutes from './routes/categories.routes';
 import budgetsRoutes from './routes/budgets.routes';
-import { requestLogger } from './middleware/requestLogger';
+import { requestLogger, requestIdMiddleware } from './middleware/requestLogger';
 import { apiRateLimiter } from './middleware/rateLimiter';
 import { sanitizer } from './middleware/sanitizer';
+import { mongoSanitizer } from './middleware/mongoSanitizer';
+import { securityHeaders } from './middleware/securityHeaders';
+import { apiVersionHeader } from './middleware/versioning';
 
 // SAFEGUARD IMPORTS - Phase 1: Foundation
 import { monitoringService, startMetricsCollection } from './services/monitoringService';
@@ -58,7 +61,23 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // ============================================================================
 // CORE MIDDLEWARE
 // ============================================================================
-app.use(helmet());
+app.use(securityHeaders); // hardened helmet config - CSP, HSTS, cross-origin resource policy, etc. (middleware/securityHeaders.ts)
+app.use(requestIdMiddleware); // stamps req.requestId / X-Request-Id for cross-service log correlation
+app.use(apiVersionHeader); // X-API-Version response header (middleware/versioning.ts)
+app.use(
+  compression({
+    // SCALABILITY: gzip/br-compress JSON responses. Analytics/export payloads
+    // can be hundreds of KB of JSON - compression typically shrinks that
+    // 70-90%, which matters far more for mobile/slow-network clients than
+    // for server CPU (compression is cheap relative to the DB work already
+    // done to build the response).
+    threshold: 1024, // don't bother compressing tiny responses (health checks etc.) - not worth the CPU
+    filter: (req: Request, res: Response) => {
+      if (req.headers['x-no-compression']) return false; // escape hatch for debugging/load-testing
+      return compression.filter(req, res);
+    },
+  }),
+);
 app.use(requestLogger);
 
 // ============================================================================
@@ -87,21 +106,45 @@ if (config.nodeEnv === 'production' || config.nodeEnv === 'development') {
   console.log('✅ Query monitoring initialized');
 }
 
-const allowedOrigins = [
+// SECURITY HARDENING: explicit allow-list. Extra origins (e.g. a staging
+// frontend URL) can be added without a code change via CORS_EXTRA_ORIGINS
+// (comma-separated) so this list doesn't need to be redeployed alongside
+// every new environment.
+const extraOrigins = (process.env.CORS_EXTRA_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const allowedOrigins: Array<string | RegExp> = [
   config.frontend.url,
   'http://localhost:3000',
   'http://localhost:5173',
   'https://localhost:5173',
   /vercel\.app$/, // Allow all Vercel domains
+  ...extraOrigins,
 ];
 
 app.use(cors({
   origin: allowedOrigins,
   credentials: true,
+  // Explicit allow-lists instead of CORS defaults: the browser preflight
+  // (OPTIONS) is then rejected outright for anything the API doesn't
+  // actually support, rather than silently allowing it through.
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'Idempotency-Key'],
+  exposedHeaders: ['X-Request-Id', 'X-API-Version', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset', 'Retry-After'],
+  maxAge: 86400, // cache the preflight result for 24h - fewer OPTIONS round-trips under load
 }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
-app.use(sanitizer);
+// REQUEST SIZE LIMITS: kept at the historical 10mb default (config.bodyLimit)
+// so this is a zero-behavior-change deploy. Override via BODY_LIMIT env var
+// per environment - no endpoint in this API accepts file uploads through
+// the JSON body today (receipts are stored as a URL string), so 1-2mb is
+// realistic for a hardened production value once you've confirmed that
+// with real traffic.
+app.use(express.json({ limit: config.bodyLimit }));
+app.use(express.urlencoded({ limit: config.bodyLimit, extended: true }));
+app.use(mongoSanitizer); // strip Mongo operator keys ($ne, $where, dotted paths) - NoSQL injection prevention
+app.use(sanitizer); // HTML-encode/strip XSS payloads from string fields
 
 // Apply rate limiting to all API endpoints (auth routes have their own individual limiters)
 app.use('/api', apiRateLimiter);
@@ -184,14 +227,23 @@ app.get('/admin/dashboard', (_req: Request, res: Response) => {
   });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/families', familyRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/export', exportRoutes);
-app.use('/api/categories', categoriesRoutes);
-app.use('/api/budgets', budgetsRoutes);
+// ============================================================================
+// API ROUTES - mounted at both /api (unversioned, permanent alias for the
+// current frontend build) and /api/v1 (explicit version for new/future
+// clients). See middleware/versioning.ts for the full strategy - future
+// breaking changes ship as a new /api/v2 mount, this one never changes shape.
+// ============================================================================
+const apiRouter = express.Router();
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/expenses', expenseRoutes);
+apiRouter.use('/families', familyRoutes);
+apiRouter.use('/analytics', analyticsRoutes);
+apiRouter.use('/export', exportRoutes);
+apiRouter.use('/categories', categoriesRoutes);
+apiRouter.use('/budgets', budgetsRoutes);
+
+app.use('/api', apiRouter);
+app.use('/api/v1', apiRouter);
 
 // 404 Handler
 app.use((_req: Request, res: Response) => {

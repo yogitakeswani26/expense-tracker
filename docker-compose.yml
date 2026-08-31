@@ -17,6 +17,24 @@ services:
       timeout: 5s
       retries: 5
 
+  # SCALABILITY: shared Redis cache (see backend/src/services/cacheService.ts).
+  # Entirely optional - the backend falls back to an in-memory cache
+  # automatically if REDIS_URL is unset/unreachable, so removing this
+  # service does not break `docker compose up`.
+  redis:
+    image: redis:7-alpine
+    container_name: expense-tracker-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build: ./backend
     container_name: expense-tracker-api
@@ -28,11 +46,15 @@ services:
       MONGODB_URI: mongodb://mongodb:27017/expense-tracker
       JWT_SECRET: dev-secret-key
       FRONTEND_URL: http://localhost:5173
+      REDIS_URL: redis://redis:6379
     depends_on:
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - ./backend/src:/app/src
 
 volumes:
   mongodb_data:
+  redis_data:

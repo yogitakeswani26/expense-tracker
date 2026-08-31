@@ -2,7 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 
 export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
-  const requestId = req.get('x-request-id') || Math.random().toString(36).substr(2, 9);
+  // Reuse the ID requestIdMiddleware already stamped on this request (if it
+  // ran first, as it does in app.ts) so every log line for one request
+  // correlates under the same ID instead of each middleware minting its own.
+  const requestId = (req as any).requestId || req.get('x-request-id') || Math.random().toString(36).substr(2, 9);
 
   // Log request
   console.log(`[${requestId}] ${req.method} ${req.path} - Started`);

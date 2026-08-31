@@ -4,17 +4,16 @@ import { authMiddleware } from '../middleware/authMiddleware';
 import { AuthRequest } from '../types';
 import { User } from '../models/User';
 import { validateObjectId } from '../utils/idValidator';
+import { validateBody } from '../middleware/inputValidator';
+import { createFamilySchema, updateFamilySchema, addFamilyMemberSchema } from '../validators/schemas';
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
-router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/', authMiddleware, validateBody(createFamilySchema), async (req: AuthRequest, res: Response) => {
   try {
     const { name, currency = 'INR', timezone = 'Asia/Kolkata' } = req.body;
-    if (!name || name.trim().length === 0) {
-      return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Family name is required' } });
-    }
     const family = await familyService.createFamily(req.user!.userId, name, currency, timezone);
     res.status(201).json({ success: true, data: family });
   } catch (error: any) {
@@ -57,7 +56,7 @@ router.get('/:familyId', async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.put('/:familyId', async (req: AuthRequest, res: Response) => {
+router.put('/:familyId', validateBody(updateFamilySchema), async (req: AuthRequest, res: Response) => {
   try {
     // ISSUE #7: Validate ObjectId before querying
     validateObjectId(req.params.familyId, 'familyId');
@@ -94,12 +93,12 @@ router.get('/:familyId/members', async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.post('/:familyId/members', async (req: AuthRequest, res: Response) => {
+router.post('/:familyId/members', validateBody(addFamilyMemberSchema), async (req: AuthRequest, res: Response) => {
   try {
     // ISSUE #7: Validate ObjectId before querying
     validateObjectId(req.params.familyId, 'familyId');
 
-    const { email, userId, role = 'member' } = req.body;
+    const { email, userId, role } = req.body;
 
     // Support both email and userId for adding members
     let memberUserId = userId;
@@ -111,15 +110,6 @@ router.post('/:familyId/members', async (req: AuthRequest, res: Response) => {
         return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User with this email not found' } });
       }
       memberUserId = user._id.toString();
-    }
-
-    if (!memberUserId) {
-      return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Either email or userId is required' } });
-    }
-
-    // ISSUE #7: Validate userId if provided directly
-    if (userId) {
-      validateObjectId(userId, 'userId');
     }
 
     const family = await familyService.addMember(req.params.familyId as string, req.user!.userId, memberUserId, role);
