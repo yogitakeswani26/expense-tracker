@@ -10,7 +10,7 @@ import analyticsRoutes from './routes/analytics.routes';
 import exportRoutes from './routes/export.routes';
 import categoriesRoutes from './routes/categories.routes';
 import { requestLogger } from './middleware/requestLogger';
-import { authRateLimiter, apiRateLimiter } from './middleware/rateLimiter';
+import { apiRateLimiter } from './middleware/rateLimiter';
 import { sanitizer } from './middleware/sanitizer';
 
 const app: Application = express();
@@ -35,9 +35,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(sanitizer);
 
-// Apply rate limiting to auth endpoints (stricter)
-app.use('/api/auth', authRateLimiter);
-// Apply rate limiting to all other endpoints
+// Apply rate limiting to all API endpoints (auth routes have their own individual limiters)
 app.use('/api', apiRateLimiter);
 
 // Health check

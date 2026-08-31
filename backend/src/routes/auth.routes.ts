@@ -2,10 +2,11 @@ import express, { Response } from 'express';
 import { authService } from '../services/authService';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { AuthRequest } from '../types';
+import { signupRateLimiter, loginRateLimiter, refreshRateLimiter } from '../middleware/rateLimiter';
 
 const router = express.Router();
 
-router.post('/signup', async (req: AuthRequest, res: Response) => {
+router.post('/signup', signupRateLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const { email, password, name } = req.body;
     const result = await authService.signup(email, password, name);
@@ -15,7 +16,7 @@ router.post('/signup', async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.post('/login', async (req: AuthRequest, res: Response) => {
+router.post('/login', loginRateLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -36,7 +37,7 @@ router.post('/login', async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.post('/refresh', async (req: AuthRequest, res: Response) => {
+router.post('/refresh', refreshRateLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const { refreshToken } = req.body;
     const result = await authService.refreshToken(refreshToken);
