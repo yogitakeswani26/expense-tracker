@@ -8,6 +8,9 @@ import Family from './pages/Family';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import Export from './pages/Export';
+import ProfilePage from './pages/ProfilePage';
+import FamilyManagement from './pages/FamilyManagement';
+import BillSplitting from './pages/BillSplitting';
 import AdvancedLayout from './components/AdvancedLayout';
 import PrivateRoute from './components/PrivateRoute';
 import './styles/global-advanced.css';
@@ -32,7 +35,9 @@ function App() {
           <Route element={<AdvancedLayout />}>
             <Route path="/dashboard" element={<DashboardPro />} />
             <Route path="/expenses" element={<ExpensesAdvanced />} />
-            <Route path="/family" element={<Family />} />
+            <Route path="/family" element={<FamilyManagement />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/bill-split" element={<BillSplitting />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/export" element={<Export />} />
             <Route path="/settings" element={<Settings />} />

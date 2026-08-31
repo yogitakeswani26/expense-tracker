@@ -408,9 +408,9 @@ const categoryHierarchy: CatData[] = [
 
 export const seedCategories = async () => {
   try {
-    const existingCount = await Category.countDocuments();
+    const existingCount = await Category.countDocuments({ isActive: true });
     if (existingCount > 50) {
-      console.log('✅ Categories already seeded');
+      console.log('✅ Categories already seeded (found ' + existingCount + ' active categories)');
       return;
     }
 
@@ -424,6 +424,8 @@ export const seedCategories = async () => {
         level: 1,
         order: mainCat.order,
         parentId: null,
+        isActive: true,
+        isDefault: true
       });
       totalCreated++;
 
@@ -436,6 +438,8 @@ export const seedCategories = async () => {
             level: 2,
             order: subCat.order,
             parentId: createdMain._id,
+            isActive: true,
+            isDefault: true
           });
           totalCreated++;
 
@@ -448,6 +452,8 @@ export const seedCategories = async () => {
                 level: 3,
                 order: subSubCat.order,
                 parentId: createdSub._id,
+                isActive: true,
+                isDefault: true
               });
               totalCreated++;
             }
