@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuthStore } from '../stores/authStore';
+import '../styles/global-advanced.css';
 
 export default function Signup() {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
@@ -41,12 +42,12 @@ export default function Signup() {
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('❌ Passwords do not match');
+      setError('Passwords do not match');
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('🔐 Password must be at least 6 characters');
+      setError('Password must be at least 6 characters');
       return;
     }
 
@@ -59,7 +60,7 @@ export default function Signup() {
         password: formData.password,
       });
 
-      setSuccess('✅ Account created! Redirecting...');
+      setSuccess('Account created! Redirecting...');
 
       setAuth(
         data.data.user,
@@ -68,24 +69,22 @@ export default function Signup() {
         data.data.user.familyId
       );
 
-      // Use a shorter delay and ensure state updates complete
-      // Use requestAnimationFrame to wait for render completion
       requestAnimationFrame(() => {
         navigate('/dashboard');
       });
     } catch (err: any) {
       const errorMsg = err.response?.data?.error?.message || 'Signup failed';
-      setError(`❌ ${errorMsg}`);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
   const getStrengthColor = (strength: number) => {
-    if (strength <= 1) return 'bg-red-500';
-    if (strength <= 2) return 'bg-orange-500';
-    if (strength <= 3) return 'bg-yellow-500';
-    return 'bg-green-500';
+    if (strength <= 1) return '#ef4444';
+    if (strength <= 2) return '#f59e0b';
+    if (strength <= 3) return '#eab308';
+    return '#10b981';
   };
 
   const getStrengthLabel = (strength: number) => {
@@ -97,167 +96,243 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-purple-50 to-blue-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute top-0 left-0 w-72 h-72 bg-gradient-to-br from-purple-300 to-transparent rounded-full opacity-20 -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-300 to-transparent rounded-full opacity-20 translate-x-1/2 translate-y-1/2 animate-pulse"></div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Animated Background Gradients */}
+      <div style={{
+        position: 'absolute',
+        top: '-50%',
+        left: '-50%',
+        width: '100%',
+        height: '100%',
+        background: 'radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%)',
+        animation: 'float 20s infinite ease-in-out'
+      }}></div>
+      <div style={{
+        position: 'absolute',
+        bottom: '-50%',
+        right: '-50%',
+        width: '100%',
+        height: '100%',
+        background: 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
+        animation: 'float 25s infinite ease-in-out'
+      }}></div>
 
-      <div className="max-w-md w-full space-y-8 relative z-10">
+      <div style={{
+        maxWidth: '480px',
+        width: '100%',
+        position: 'relative',
+        zIndex: 10
+      }}>
         {/* Header */}
-        <div className="text-center animate-fadeIn">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl mb-4 shadow-xl transform hover:scale-110 transition-transform duration-300">
-            <span className="text-5xl">💳</span>
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '80px',
+            height: '80px',
+            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)',
+            borderRadius: '20px',
+            marginBottom: '20px',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            fontSize: '3rem'
+          }}>
+            💰
           </div>
-          <h1 className="text-4xl font-bold text-gradient mb-2">ExpenseTracker</h1>
-          <p className="text-lg text-slate-600 font-semibold">Create Your Account</p>
-          <p className="text-sm text-slate-500 mt-1">Join thousands managing family finances beautifully</p>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: '900', color: '#ffffff', marginBottom: '8px' }}>
+            ExpenseTracker
+          </h1>
+          <p style={{ fontSize: '1.1rem', color: '#cbd5e1', fontWeight: '600' }}>Create Your Account</p>
+          <p style={{ fontSize: '0.95rem', color: '#94a3b8', marginTop: '8px' }}>Join thousands managing family finances</p>
         </div>
 
-        {/* Card */}
-        <div className="card shadow-2xl animate-slideInUp">
-          {/* Success Message */}
+        {/* Signup Card */}
+        <div className="glass-card" style={{ padding: '40px' }}>
+          <div style={{ marginBottom: '30px' }}>
+            <h2 style={{ fontSize: '1.8rem', fontWeight: '800', color: '#ffffff', textAlign: 'center', marginBottom: '8px' }}>
+              Get Started
+            </h2>
+            <p style={{ textAlign: 'center', color: '#94a3b8' }}>Create your account to start tracking</p>
+          </div>
+
           {success && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 text-green-700 rounded-xl text-sm font-semibold animate-slideInDown flex items-center gap-2">
-              <span className="text-lg">{success.split(' ')[0]}</span>
-              <span>{success.substring(2)}</span>
+            <div style={{
+              marginBottom: '20px',
+              padding: '16px',
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '12px',
+              color: '#86efac',
+              fontSize: '0.95rem',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <span style={{ fontSize: '1.2rem' }}>✅</span>
+              {success}
             </div>
           )}
 
-          {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-300 text-red-700 rounded-xl text-sm font-semibold animate-slideInDown flex items-center gap-2">
-              <span className="text-lg">{error.split(' ')[0]}</span>
-              <span>{error.substring(2)}</span>
+            <div style={{
+              marginBottom: '20px',
+              padding: '16px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '12px',
+              color: '#fca5a5',
+              fontSize: '0.95rem',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <span style={{ fontSize: '1.2rem' }}>❌</span>
+              {error}
             </div>
           )}
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            {/* Name Input */}
+          <form style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} onSubmit={handleSubmit}>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Full Name</label>
+              <label className="form-label">Full Name</label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="John Doe"
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 bg-white/80 hover:bg-white"
+                className="form-input"
                 required
               />
             </div>
 
-            {/* Email Input */}
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
+              <label className="form-label">Email Address</label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="your@email.com"
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 bg-white/80 hover:bg-white"
+                className="form-input"
                 required
               />
             </div>
 
-            {/* Password Input */}
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Password</label>
+              <label className="form-label">Password</label>
               <input
                 type="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 bg-white/80 hover:bg-white"
+                className="form-input"
                 required
               />
               {formData.password && (
-                <div className="mt-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-slate-600">Password Strength</span>
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                      passwordStrength <= 1 ? 'bg-red-100 text-red-700' :
-                      passwordStrength <= 2 ? 'bg-orange-100 text-orange-700' :
-                      passwordStrength <= 3 ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>
-                      {getStrengthLabel(passwordStrength)}
-                    </span>
+                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    flex: 1,
+                    height: '4px',
+                    background: 'rgba(255,255,255,0.1)',
+                    borderRadius: '2px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${(passwordStrength / 5) * 100}%`,
+                      background: getStrengthColor(passwordStrength),
+                      transition: 'width 0.3s'
+                    }}></div>
                   </div>
-                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${getStrengthColor(passwordStrength)} transition-all duration-300`}
-                      style={{ width: `${(passwordStrength / 5) * 100}%` }}
-                    ></div>
-                  </div>
+                  <span style={{ fontSize: '0.85rem', color: getStrengthColor(passwordStrength), fontWeight: '600' }}>
+                    {getStrengthLabel(passwordStrength)}
+                  </span>
                 </div>
               )}
             </div>
 
-            {/* Confirm Password Input */}
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Confirm Password</label>
+              <label className="form-label">Confirm Password</label>
               <input
                 type="password"
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 bg-white/80 hover:bg-white"
+                className="form-input"
                 required
               />
-              {formData.confirmPassword && formData.password === formData.confirmPassword && (
-                <p className="text-xs text-green-600 font-semibold mt-2">✅ Passwords match</p>
-              )}
-              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                <p className="text-xs text-red-600 font-semibold mt-2">❌ Passwords don't match</p>
-              )}
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+              className="btn btn-primary"
+              style={{
+                width: '100%',
+                marginTop: '10px',
+                opacity: loading ? 0.7 : 1,
+                cursor: loading ? 'not-allowed' : 'pointer'
+              }}
             >
               {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="animate-spin">⏳</span>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '18px',
+                    height: '18px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTop: '2px solid white',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite'
+                  }}></div>
                   Creating Account...
                 </span>
               ) : (
-                <span className="flex items-center justify-center gap-2">
-                  <span>✨</span>
-                  Create Account
-                </span>
+                '✨ Create Account'
               )}
             </button>
-
-            {/* Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-3 bg-white text-slate-500 font-medium">or</span>
-              </div>
-            </div>
-
-            {/* Sign In Link */}
-            <p className="text-center text-slate-600 font-semibold">
-              Already have an account?{' '}
-              <a href="/login" className="text-purple-600 hover:text-purple-700 font-bold transition-colors">
-                Sign in
-              </a>
-            </p>
           </form>
+
+          <div style={{ marginTop: '24px', textAlign: 'center', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <p style={{ color: '#94a3b8', fontSize: '0.95rem', marginBottom: '10px' }}>
+              Already have an account?
+            </p>
+            <Link to="/login" style={{
+              color: '#667eea',
+              textDecoration: 'none',
+              fontWeight: '700',
+              fontSize: '1rem',
+              transition: 'color 0.3s',
+              display: 'inline-block'
+            }} onMouseEnter={(e) => e.currentTarget.style.color = '#7c3aed'} onMouseLeave={(e) => e.currentTarget.style.color = '#667eea'}>
+              Sign In Instead →
+            </Link>
+          </div>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-slate-500">
-          🔒 Your data is secure and encrypted
-        </p>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(30px); }
+          }
+        `}</style>
       </div>
     </div>
   );
