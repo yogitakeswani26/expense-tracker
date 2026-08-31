@@ -62,25 +62,38 @@ export class AnalyticsService {
   }
 
   async getMonthlyTrends(familyId: string, months: number = 12) {
-    const trends = [];
     const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
 
-    for (let i = months - 1; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    // OPTIMIZATION: Use single aggregation query instead of N+1 queries
+    const results = await Expense.aggregate([
+      {
+        $match: {
+          familyId: new (require('mongoose')).Types.ObjectId(familyId),
+          date: { $gte: startDate },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$date' },
+            month: { $month: '$date' },
+          },
+          total: { $sum: '$amount' },
+        },
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 },
+      },
+    ]);
 
-      const expenses = await Expense.find({
-        familyId,
-        date: { $gte: monthStart, $lte: monthEnd },
-      });
-
-      const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-      trends.push({
+    const trends = results.map(result => {
+      const date = new Date(result._id.year, result._id.month - 1);
+      return {
         month: date.toLocaleString('default', { month: 'short', year: '2-digit' }),
-        total,
-      });
-    }
+        total: result.total,
+      };
+    });
 
     return trends;
   }
@@ -91,28 +104,38 @@ export class AnalyticsService {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    return Promise.all(
-      budgets.map(async budget => {
-        const expenses = await Expense.find({
-          familyId,
-          category: budget.category,
+    // OPTIMIZATION: Single aggregation query to get all category spending
+    const spendingByCategory = await Expense.aggregate([
+      {
+        $match: {
+          familyId: new (require('mongoose')).Types.ObjectId(familyId),
           date: { $gte: monthStart, $lte: monthEnd },
-        });
+        },
+      },
+      {
+        $group: {
+          _id: '$category',
+          spent: { $sum: '$amount' },
+        },
+      },
+    ]);
 
-        const spent = expenses.reduce((sum, e) => sum + e.amount, 0);
-        const remaining = Math.max(0, budget.limit - spent);
-        const percentage = budget.limit > 0 ? (spent / budget.limit * 100).toFixed(2) : '0';
+    const spendingMap = new Map(spendingByCategory.map((item: any) => [item._id, item.spent]));
 
-        return {
-          category: budget.category,
-          limit: budget.limit,
-          spent,
-          remaining,
-          percentage: parseFloat(percentage),
-          status: budget.limit === 0 ? 'invalid' : spent > budget.limit ? 'exceeded' : spent / budget.limit > 0.8 ? 'warning' : 'ok',
-        };
-      }),
-    );
+    return budgets.map(budget => {
+      const spent = spendingMap.get(budget.category) || 0;
+      const remaining = Math.max(0, budget.limit - spent);
+      const percentage = budget.limit > 0 ? (spent / budget.limit * 100).toFixed(2) : '0';
+
+      return {
+        category: budget.category,
+        limit: budget.limit,
+        spent,
+        remaining,
+        percentage: parseFloat(percentage),
+        status: budget.limit === 0 ? 'invalid' : spent > budget.limit ? 'exceeded' : spent / budget.limit > 0.8 ? 'warning' : 'ok',
+      };
+    });
   }
 
   async getSpenderComparison(familyId: string, startDate: Date, endDate: Date) {

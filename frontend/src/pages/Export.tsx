@@ -10,11 +10,15 @@ export default function Export() {
   const [reportType, setReportType] = useState<'none' | 'monthly' | 'yearly'>('none');
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const familyId = useAuthStore((state) => state.familyId);
 
   const handleExportExpenses = async () => {
     setLoading(true);
+    setError('');
+    setSuccess('');
     try {
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
@@ -32,6 +36,8 @@ export default function Export() {
         document.body.appendChild(link);
         link.click();
         link.parentNode?.removeChild(link);
+        // CRITICAL: Cleanup blob URL to prevent memory leak
+        window.URL.revokeObjectURL(url);
       } else {
         const dataStr = JSON.stringify(response.data.data, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
@@ -43,9 +49,10 @@ export default function Export() {
         link.parentNode?.removeChild(link);
       }
 
-      alert('Export successful! 📥');
+      setSuccess(`Export successful! 📥`);
     } catch (error: any) {
-      alert(error.response?.data?.error?.message || 'Export failed');
+      const errorMsg = error.response?.data?.error?.message || 'Export failed';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -53,6 +60,8 @@ export default function Export() {
 
   const handleGenerateReport = async () => {
     setLoading(true);
+    setError('');
+    setSuccess('');
     try {
       const endpoint =
         reportType === 'monthly'
@@ -130,10 +139,13 @@ export default function Export() {
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
+      // CRITICAL: Cleanup blob URL to prevent memory leak
+      window.URL.revokeObjectURL(url);
 
-      alert('Report generated successfully! 📊');
+      setSuccess('Report generated successfully! 📊');
     } catch (error: any) {
-      alert(error.response?.data?.error?.message || 'Report generation failed');
+      const errorMsg = error.response?.data?.error?.message || 'Report generation failed';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -143,6 +155,20 @@ export default function Export() {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">📥 Export & Reports</h1>
+
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {/* Success Display */}
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
+            {success}
+          </div>
+        )}
 
         <div className="space-y-8">
           {/* Export Expenses */}

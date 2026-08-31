@@ -39,7 +39,11 @@ export class ExpenseService {
 
     const expense = new Expense(expenseData);
     await expense.save();
-    return expense.populate(['paidBy', 'splits.userId', 'categoryId']);
+    return expense.populate([
+      { path: 'paidBy', select: 'name email avatar' },
+      { path: 'splits.userId', select: 'name email' },
+      { path: 'categoryId', select: 'name icon color' }
+    ]);
   }
 
   async getExpenses(familyId: string, filters: any = {}) {
@@ -66,7 +70,10 @@ export class ExpenseService {
     const skip = (page - 1) * limit;
 
     const expenses = await Expense.find(query)
-      .populate(['paidBy', 'splits.userId', 'createdBy', 'categoryId'])
+      .populate('paidBy', 'name email avatar')
+      .populate('splits.userId', 'name email')
+      .populate('createdBy', 'name email')
+      .populate('categoryId', 'name icon color')
       .sort({ date: -1 })
       .skip(skip)
       .limit(limit);
@@ -77,15 +84,28 @@ export class ExpenseService {
   }
 
   async getExpenseById(familyId: string, expenseId: string) {
-    const expense = await Expense.findOne({ _id: expenseId, familyId }).populate(['paidBy', 'splits.userId', 'categoryId']);
+    const expense = await Expense.findOne({ _id: expenseId, familyId })
+      .populate('paidBy', 'name email avatar')
+      .populate('splits.userId', 'name email')
+      .populate('categoryId', 'name icon color');
     if (!expense) {
       throw new AppError('EXPENSE_NOT_FOUND', 'Expense not found', 404);
     }
     return expense;
   }
 
-  async updateExpense(familyId: string, expenseId: string, data: any) {
+  async updateExpense(familyId: string, expenseId: string, userId: string, data: any) {
     let updateData: any = { ...data, updatedAt: new Date() };
+
+    // SECURITY: Verify user is the expense creator
+    const expense = await Expense.findOne({ _id: expenseId, familyId });
+    if (!expense) {
+      throw new AppError('EXPENSE_NOT_FOUND', 'Expense not found', 404);
+    }
+
+    if (expense.createdBy.toString() !== userId) {
+      throw new AppError('UNAUTHORIZED', 'Only the expense creator can update this expense', 403);
+    }
 
     // Handle categoryId mapping
     if (data.categoryId) {
@@ -103,31 +123,38 @@ export class ExpenseService {
       }
     }
 
-    const expense = await Expense.findOneAndUpdate(
+    const updatedExpense = await Expense.findOneAndUpdate(
       { _id: expenseId, familyId },
       updateData,
       { new: true },
-    ).populate(['paidBy', 'splits.userId', 'categoryId']);
+    )
+      .populate('paidBy', 'name email avatar')
+      .populate('splits.userId', 'name email')
+      .populate('categoryId', 'name icon color');
 
+    return updatedExpense;
+  }
+
+  async deleteExpense(familyId: string, expenseId: string, userId: string) {
+    const expense = await Expense.findOne({ _id: expenseId, familyId });
     if (!expense) {
       throw new AppError('EXPENSE_NOT_FOUND', 'Expense not found', 404);
     }
-    return expense;
-  }
 
-  async deleteExpense(familyId: string, expenseId: string) {
-    const result = await Expense.findOneAndDelete({ _id: expenseId, familyId });
-    if (!result) {
-      throw new AppError('EXPENSE_NOT_FOUND', 'Expense not found', 404);
+    // SECURITY: Verify user is the expense creator
+    if (expense.createdBy.toString() !== userId) {
+      throw new AppError('UNAUTHORIZED', 'Only the expense creator can delete this expense', 403);
     }
+
+    const result = await Expense.findOneAndDelete({ _id: expenseId, familyId });
     return { success: true };
   }
 
-  async getCategories(familyId: string) {
+  async getCategories(familyId: string, limit: number = 100, skip: number = 0) {
     const defaultCategories = ['Food', 'Travel', 'Shopping', 'Bills', 'Entertainment', 'Healthcare', 'Utilities'];
-    const customCategories = await Category.find({ familyId });
+    const customCategories = await Category.find({ familyId }).limit(limit).skip(skip);
 
-    return [
+    const allCategories = [
       ...defaultCategories.map(name => ({
         _id: name,
         name,
@@ -137,6 +164,14 @@ export class ExpenseService {
       })),
       ...customCategories,
     ];
+
+    const total = await Category.countDocuments({ familyId });
+    return {
+      categories: allCategories.slice(skip, skip + limit),
+      total: defaultCategories.length + total,
+      limit,
+      skip,
+    };
   }
 
   private getCategoryIcon(category: string): string {

@@ -134,6 +134,11 @@ export class FamilyService {
       throw new AppError('MEMBER_NOT_FOUND', 'Member not found', 404);
     }
 
+    // SECURITY: Prevent creating new owners - only one owner allowed
+    if (role === 'owner' && family.ownerId.toString() !== userId) {
+      throw new AppError('UNAUTHORIZED', 'Only one family owner is allowed. Cannot promote another member to owner.', 403);
+    }
+
     member.role = role;
     await family.save();
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import api from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -8,10 +8,17 @@ export default function Analytics() {
   const [spending, setSpending] = useState<any[]>([]);
   const [trends, setTrends] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const isMountedRef = useRef(true);
   const familyId = useAuthStore((state) => state.familyId);
 
   useEffect(() => {
+    isMountedRef.current = true;
     if (familyId) fetchAnalytics();
+
+    // CRITICAL: Cleanup on unmount
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [familyId]);
 
   const fetchAnalytics = async () => {
@@ -22,13 +29,19 @@ export default function Analytics() {
         api.get(`/analytics/${familyId}/trends?months=12`),
       ]);
 
-      setBudgets(budgetsRes.data.data);
-      setSpending(spendingRes.data.data);
-      setTrends(trendsRes.data.data);
+      if (!isMountedRef.current) return;
+
+      // Type-safe data access with defaults
+      setBudgets(Array.isArray(budgetsRes.data?.data) ? budgetsRes.data.data : []);
+      setSpending(Array.isArray(spendingRes.data?.data) ? spendingRes.data.data : []);
+      setTrends(Array.isArray(trendsRes.data?.data) ? trendsRes.data.data : []);
     } catch (err) {
+      if (!isMountedRef.current) return;
       console.error('Failed to load analytics');
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

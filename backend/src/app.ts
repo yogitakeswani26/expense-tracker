@@ -1,4 +1,4 @@
-import express, { Application, Request, Response } from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config/env';
@@ -13,9 +13,49 @@ import { requestLogger } from './middleware/requestLogger';
 import { apiRateLimiter } from './middleware/rateLimiter';
 import { sanitizer } from './middleware/sanitizer';
 
+// SAFEGUARD IMPORTS - Phase 1: Foundation
+import { monitoringService, startMetricsCollection } from './services/monitoringService';
+import { optimizeDatabase, ensureIndexes, setupQueryMonitoring, startConnectionHealthCheck, monitorMemoryPressure } from './config/databaseOptimization';
+
+// SAFEGUARD IMPORTS - Phase 2: Core Protection
+import { idempotencyHandler, duplicateDetectionMiddleware } from './middleware/idempotencyHandler';
+
+// SAFEGUARD IMPORTS - Phase 3: Advanced Protection
+import { CircuitBreaker, Bulkhead, withResilience } from './services/circuitBreaker';
+import { AuditLogService } from './models/AuditLog';
+
 const app: Application = express();
 
-// Middleware
+// ============================================================================
+// MONITORING MIDDLEWARE - Records all request metrics
+// ============================================================================
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+
+  // Intercept res.json to record metrics
+  const originalJson = res.json.bind(res);
+  res.json = function (data: any) {
+    const duration = Date.now() - start;
+
+    // Record metric
+    monitoringService.recordMetric({
+      endpoint: req.path,
+      method: req.method,
+      statusCode: res.statusCode,
+      duration: duration,
+      timestamp: new Date(),
+      userId: (req as any).user?.userId,
+    });
+
+    return originalJson(data);
+  };
+
+  next();
+});
+
+// ============================================================================
+// CORE MIDDLEWARE
+// ============================================================================
 app.use(helmet());
 app.use(requestLogger);
 
@@ -38,7 +78,17 @@ app.use(sanitizer);
 // Apply rate limiting to all API endpoints (auth routes have their own individual limiters)
 app.use('/api', apiRateLimiter);
 
-// Health check
+// ============================================================================
+// SAFEGUARD MIDDLEWARE - Phase 2: Duplicate Prevention & Idempotency
+// ============================================================================
+app.use('/api', idempotencyHandler);
+app.use('/api', duplicateDetectionMiddleware);
+
+// ============================================================================
+// HEALTH CHECK ENDPOINTS
+// ============================================================================
+
+// Basic health check
 app.get('/health', (_req: Request, res: Response) => {
   res.json({
     success: true,
@@ -46,6 +96,62 @@ app.get('/health', (_req: Request, res: Response) => {
       status: 'OK',
       timestamp: new Date().toISOString(),
       environment: config.nodeEnv,
+    },
+  });
+});
+
+// Detailed system health metrics
+app.get('/health/metrics', (_req: Request, res: Response) => {
+  const health = monitoringService.getSystemHealth();
+  const statusCode = health.status === 'healthy' ? 200 : 503;
+  res.status(statusCode).json({
+    success: true,
+    data: health,
+  });
+});
+
+// Anomaly detection
+app.get('/health/anomalies', (_req: Request, res: Response) => {
+  const anomalies = monitoringService.detectAnomalies();
+  res.json({
+    success: true,
+    data: anomalies,
+  });
+});
+
+// Latency statistics
+app.get('/health/latency', (_req: Request, res: Response) => {
+  const latency = monitoringService.getLatencyStats();
+  res.json({
+    success: true,
+    data: latency,
+  });
+});
+
+// Error statistics
+app.get('/health/errors', (_req: Request, res: Response) => {
+  const errors = monitoringService.getErrorStats();
+  res.json({
+    success: true,
+    data: errors,
+  });
+});
+
+// ============================================================================
+// MONITORING DASHBOARD ENDPOINTS
+// ============================================================================
+
+// Comprehensive monitoring dashboard
+app.get('/admin/dashboard', (_req: Request, res: Response) => {
+  const health = monitoringService.getSystemHealth();
+  const anomalies = monitoringService.detectAnomalies();
+
+  res.json({
+    success: true,
+    data: {
+      system: health,
+      anomalies,
+      timestamp: new Date().toISOString(),
     },
   });
 });

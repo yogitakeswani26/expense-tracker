@@ -11,9 +11,28 @@ class AppError extends Error {
   }
 }
 
+/**
+ * Sanitize error object to remove sensitive data before logging
+ */
+function sanitizeErrorForLogging(err: any): any {
+  const sanitized: any = {
+    code: err.code || 'UNKNOWN',
+    message: err.message || 'Unknown error',
+    statusCode: err.statusCode || 500,
+  };
+
+  // Only include stack in development
+  if (process.env.NODE_ENV === 'development') {
+    sanitized.stack = err.stack;
+  }
+
+  return sanitized;
+}
+
 export const errorHandler = (err: any, _req: AuthRequest, res: Response, _next: NextFunction) => {
-  // Error logging would go to logging service (Sentry, etc.) in production
-  console.error('ERROR:', err);
+  // SECURITY: Sanitize error before logging to prevent sensitive data leaks
+  const sanitizedError = sanitizeErrorForLogging(err);
+  console.error('ERROR:', sanitizedError);
 
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({

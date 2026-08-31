@@ -1,10 +1,23 @@
 import { Request, Response, NextFunction } from 'express';
 
-// Simple sanitization - remove potential XSS/injection characters from strings
+// Enhanced XSS prevention - sanitize input by removing dangerous characters and HTML
 function sanitizeValue(value: any): any {
   if (typeof value === 'string') {
     return value
-      .replace(/[<>]/g, '') // Remove angle brackets
+      .replace(/[<>'"&]/g, (char) => {
+        // HTML encode dangerous characters
+        const htmlEncode: any = {
+          '<': '&lt;',
+          '>': '&gt;',
+          "'": '&#39;',
+          '"': '&quot;',
+          '&': '&amp;',
+        };
+        return htmlEncode[char] || char;
+      })
+      // Remove script-like patterns
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+\s*=/gi, '')
       .trim();
   }
   if (typeof value === 'object' && value !== null) {

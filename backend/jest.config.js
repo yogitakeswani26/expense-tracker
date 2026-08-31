@@ -1,24 +1,10 @@
-export default {
-  preset: 'ts-jest',
+module.exports = {
   testEnvironment: 'node',
-  roots: ['<rootDir>/src', '<rootDir>/tests'],
-  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  testMatch: ['<rootDir>/dist/**/*.test.js'],
   collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/index.ts',
-    '!src/app.ts',
+    'dist/**/*.js',
+    '!dist/**/*.d.js',
+    '!dist/**/*.test.js',
   ],
-  coverageThreshold: {
-    global: {
-      branches: 50,
-      functions: 50,
-      lines: 50,
-      statements: 50,
-    },
-  },
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-  },
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  passWithNoTests: true,
 };

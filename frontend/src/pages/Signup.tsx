@@ -68,7 +68,11 @@ export default function Signup() {
         data.data.user.familyId
       );
 
-      setTimeout(() => navigate('/dashboard'), 1000);
+      // Use a shorter delay and ensure state updates complete
+      // Use requestAnimationFrame to wait for render completion
+      requestAnimationFrame(() => {
+        navigate('/dashboard');
+      });
     } catch (err: any) {
       const errorMsg = err.response?.data?.error?.message || 'Signup failed';
       setError(`❌ ${errorMsg}`);

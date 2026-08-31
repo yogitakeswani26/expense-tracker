@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import api from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { Expense } from '../types';
@@ -28,37 +28,51 @@ export default function Expenses() {
     date: new Date().toISOString().split('T')[0],
   });
   const [error, setError] = useState('');
+  const isMountedRef = useRef(true);
 
   const familyId = useAuthStore((state) => state.familyId);
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (familyId) {
       fetchExpenses();
       fetchCategories();
     }
+
+    // CRITICAL: Cleanup on unmount to prevent state updates
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [familyId]);
 
   const fetchExpenses = async () => {
     try {
-      setError('');
       const res = await api.get(`/expenses/${familyId}`);
+      if (!isMountedRef.current) return;
       const { expenses = [] } = res.data.data;
+      setError('');
       setExpenses(Array.isArray(expenses) ? expenses : []);
     } catch (err: any) {
+      if (!isMountedRef.current) return;
       const errorMsg = err.response?.data?.error?.message || 'Failed to load expenses';
       setError(errorMsg);
       console.error('Expenses error:', errorMsg);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   const fetchCategories = async () => {
     try {
       const res = await api.get('/categories');
+      if (!isMountedRef.current) return;
       const categoriesData = res.data.data;
       setAllCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (err: any) {
+      if (!isMountedRef.current) return;
       const errorMsg = err.response?.data?.error?.message || 'Failed to load categories';
       console.error('Categories error:', errorMsg);
     }
@@ -110,14 +124,15 @@ export default function Expenses() {
   };
 
   const handleEdit = (expense: Expense) => {
+    // CRITICAL: Check fields exist before accessing
     setFormData({
-      description: expense.description,
-      amount: expense.amount.toString(),
-      categoryId: (expense as any).categoryId || expense.category,
-      tags: expense.tags.join(', '),
-      date: new Date(expense.date).toISOString().split('T')[0],
+      description: expense.description || '',
+      amount: (expense.amount || 0).toString(),
+      categoryId: expense.categoryId || expense.category || '',
+      tags: Array.isArray(expense.tags) ? expense.tags.join(', ') : '',
+      date: expense.date ? new Date(expense.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     });
-    setSelectedCategoryName(expense.category);
+    setSelectedCategoryName(expense.category || '');
     setEditingId(expense._id);
     setShowModal(true);
   };

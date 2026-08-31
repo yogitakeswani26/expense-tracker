@@ -13,6 +13,7 @@ export interface IExpenseDoc extends Document {
   splits: Array<{ userId: mongoose.Types.ObjectId; amount: number; status: string }>;
   isRecurring: boolean;
   recurrencePattern?: string;
+  parentExpenseId?: mongoose.Types.ObjectId;
   receipt?: { url: string; uploadedAt: Date };
   paymentMethod: string;
   createdBy: mongoose.Types.ObjectId;
@@ -37,6 +38,7 @@ const expenseSchema = new Schema<IExpenseDoc>({
   }],
   isRecurring: { type: Boolean, default: false },
   recurrencePattern: String,
+  parentExpenseId: { type: Schema.Types.ObjectId, ref: 'Expense' },
   receipt: {
     url: String,
     uploadedAt: Date,
@@ -53,5 +55,6 @@ expenseSchema.index({ paidBy: 1 });
 expenseSchema.index({ createdBy: 1 });
 expenseSchema.index({ categoryId: 1 });
 expenseSchema.index({ category: 1 });
+expenseSchema.index({ familyId: 1, isRecurring: 1 }); // Index for recurring expense queries
 
 export const Expense = mongoose.model<IExpenseDoc>('Expense', expenseSchema);

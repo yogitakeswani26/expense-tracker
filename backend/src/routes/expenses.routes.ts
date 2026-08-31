@@ -43,7 +43,9 @@ router.post('/:familyId', async (req: AuthRequest, res: Response) => {
 
 router.get('/:familyId/categories', async (req: AuthRequest, res: Response) => {
   try {
-    const categories = await expenseService.getCategories(req.params.familyId as string);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 100));
+    const skip = Math.max(0, parseInt(req.query.skip as string) || 0);
+    const categories = await expenseService.getCategories(req.params.familyId as string, limit, skip);
     res.json({ success: true, data: categories });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
@@ -70,7 +72,7 @@ router.get('/:familyId/:expenseId', async (req: AuthRequest, res: Response) => {
 
 router.put('/:familyId/:expenseId', async (req: AuthRequest, res: Response) => {
   try {
-    const expense = await expenseService.updateExpense(req.params.familyId as string, req.params.expenseId as string, req.body);
+    const expense = await expenseService.updateExpense(req.params.familyId as string, req.params.expenseId as string, req.user!.userId, req.body);
     res.json({ success: true, data: expense });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
@@ -79,7 +81,7 @@ router.put('/:familyId/:expenseId', async (req: AuthRequest, res: Response) => {
 
 router.delete('/:familyId/:expenseId', async (req: AuthRequest, res: Response) => {
   try {
-    const result = await expenseService.deleteExpense(req.params.familyId as string, req.params.expenseId as string);
+    const result = await expenseService.deleteExpense(req.params.familyId as string, req.params.expenseId as string, req.user!.userId);
     res.json({ success: true, data: result });
   } catch (error: any) {
     res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });

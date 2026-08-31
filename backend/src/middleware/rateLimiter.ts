@@ -4,36 +4,55 @@ interface RequestTimestamp {
   timestamp: number;
 }
 
+interface StoreEntry {
+  timestamps: RequestTimestamp[];
+  lastAccessed: number;
+}
+
 // Use Map instead of plain object for better performance and memory efficiency
-const store = new Map<string, RequestTimestamp[]>();
+const store = new Map<string, StoreEntry>();
 
 // Cleanup configuration
 const CLEANUP_INTERVAL = 5 * 60 * 1000; // Run cleanup every 5 minutes
 const ENTRY_TTL = 15 * 60 * 1000; // Keep entries for 15 minutes max
+const MAX_STORE_SIZE = 10000; // Maximum number of unique IPs to track
 
 /**
  * Automatic cleanup of old entries to prevent memory leak
  * Runs every 5 minutes and removes entries older than 15 minutes
+ * Implements LRU eviction when store exceeds max size
  */
 const cleanupInterval = setInterval(() => {
   const now = Date.now();
   const keysToDelete: string[] = [];
 
-  for (const [key, timestamps] of store.entries()) {
+  for (const [key, entry] of store.entries()) {
     // Filter out requests older than 15 minutes
-    const recentRequests = timestamps.filter(req => now - req.timestamp < ENTRY_TTL);
+    const recentRequests = entry.timestamps.filter(req => now - req.timestamp < ENTRY_TTL);
 
     if (recentRequests.length === 0) {
       // Mark for deletion if no recent requests
       keysToDelete.push(key);
     } else {
       // Update store with filtered requests
-      store.set(key, recentRequests);
+      store.set(key, { timestamps: recentRequests, lastAccessed: now });
     }
   }
 
   // Remove empty entries
   keysToDelete.forEach(key => store.delete(key));
+
+  // OPTIMIZATION: Implement LRU eviction when store exceeds max size
+  if (store.size > MAX_STORE_SIZE) {
+    const entries = Array.from(store.entries())
+      .sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+
+    // Remove oldest 10% of entries
+    const toRemove = Math.ceil(store.size * 0.1);
+    for (let i = 0; i < toRemove; i++) {
+      store.delete(entries[i][0]);
+    }
+  }
 }, CLEANUP_INTERVAL);
 
 /**
@@ -77,7 +96,7 @@ export const rateLimiter = (windowMs: number = 60 * 1000, maxRequests: number = 
 
     // Initialize if first request from this IP
     if (!store.has(clientIp)) {
-      store.set(clientIp, [{ timestamp: now }]);
+      store.set(clientIp, { timestamps: [{ timestamp: now }], lastAccessed: now });
       res.setHeader('X-RateLimit-Limit', maxRequests);
       res.setHeader('X-RateLimit-Remaining', maxRequests - 1);
       res.setHeader('X-RateLimit-Reset', new Date(now + windowMs).toISOString());
@@ -85,7 +104,15 @@ export const rateLimiter = (windowMs: number = 60 * 1000, maxRequests: number = 
     }
 
     // Get stored requests for this IP
-    let requests = store.get(clientIp) || [];
+    const entry = store.get(clientIp);
+    if (!entry) {
+      res.setHeader('X-RateLimit-Limit', maxRequests);
+      res.setHeader('X-RateLimit-Remaining', maxRequests - 1);
+      res.setHeader('X-RateLimit-Reset', new Date(now + windowMs).toISOString());
+      return next();
+    }
+
+    let requests = entry.timestamps;
 
     // Remove requests outside the current sliding window
     requests = requests.filter(req => req.timestamp > windowStart);
@@ -109,9 +136,9 @@ export const rateLimiter = (windowMs: number = 60 * 1000, maxRequests: number = 
       });
     }
 
-    // Record current request
+    // Record current request and update last accessed
     requests.push({ timestamp: now });
-    store.set(clientIp, requests);
+    store.set(clientIp, { timestamps: requests, lastAccessed: now });
 
     res.setHeader('X-RateLimit-Limit', maxRequests);
     res.setHeader('X-RateLimit-Remaining', maxRequests - requests.length);

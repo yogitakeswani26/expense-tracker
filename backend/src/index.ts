@@ -3,6 +3,8 @@ import { config } from './config/env';
 import { connectDB } from './config/database';
 import { seedDemoUser } from './utils/seed';
 import { seedCategories } from './seeds/categories.seed';
+import { startMetricsCollection, monitoringService } from './services/monitoringService';
+import { monitorMemoryPressure } from './config/databaseOptimization';
 
 const startServer = async () => {
   try {
@@ -27,6 +29,31 @@ const startServer = async () => {
       console.log(`🚀 Server running on port ${config.port}`);
       console.log(`📁 Environment: ${config.nodeEnv}`);
       console.log(`✅ Ready to accept requests`);
+
+      // ============================================================================
+      // SAFEGUARD INITIALIZATION - Phase 1 & 4: Monitoring & Metrics
+      // ============================================================================
+
+      // Start metrics collection (records system health every minute)
+      console.log('📊 Starting metrics collection...');
+      startMetricsCollection(
+        parseInt(process.env.METRICS_COLLECTION_INTERVAL || '60000', 10)
+      );
+
+      // Start memory pressure monitoring (every minute)
+      console.log('💾 Starting memory pressure monitoring...');
+      monitorMemoryPressure(
+        parseInt(process.env.MEMORY_CHECK_INTERVAL || '60000', 10)
+      );
+
+      console.log('✅ All safeguards initialized');
+      console.log('📈 Monitor system at:');
+      console.log(`   - Basic health: GET /health`);
+      console.log(`   - Metrics: GET /health/metrics`);
+      console.log(`   - Anomalies: GET /health/anomalies`);
+      console.log(`   - Latency: GET /health/latency`);
+      console.log(`   - Errors: GET /health/errors`);
+      console.log(`   - Dashboard: GET /admin/dashboard`);
     });
 
     // Handle server errors
