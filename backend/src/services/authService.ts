@@ -44,12 +44,16 @@ export class AuthService {
         familyId: family._id.toString(),
       });
 
+      // ISSUE #6: Return all family IDs for client to handle family switching
+      const familyIds = [family._id.toString()];
+
       return {
         user: {
           id: user._id,
           email: user.email,
           name: user.name,
-          familyId: family._id.toString()
+          familyId: family._id.toString(),
+          familyIds, // Allow client to know about all families
         },
         tokens
       };
@@ -75,18 +79,25 @@ export class AuthService {
       throw new AppError('INVALID_CREDENTIALS', 'Invalid credentials', 401);
     }
 
-    const family = await Family.findOne({ 'members.userId': user._id });
-    if (!family) {
+    // ISSUE #6: Get all families for the user from DB to support multiple families
+    const families = await Family.find({ 'members.userId': user._id });
+    if (!families || families.length === 0) {
       throw new AppError('NO_FAMILY', 'User has no family', 400);
     }
 
-    const memberRole = family.members.find(m => m.userId.toString() === user._id.toString())?.role || 'member';
+    // Use primary family (first one or by preference)
+    const primaryFamily = families[0];
+    // Ensure consistent string conversion (Issue #3)
+    const memberRole = primaryFamily.members.find(m => m.userId.toString() === user._id.toString())?.role || 'member';
+
+    // ISSUE #6: Return all family IDs for client to handle family switching
+    const familyIds = families.map(f => f._id.toString());
 
     const tokens = generateTokens({
       userId: user._id.toString(),
       email: user.email,
       role: memberRole as any,
-      familyId: family._id.toString(),
+      familyId: primaryFamily._id.toString(),
     });
 
     return {
@@ -94,7 +105,8 @@ export class AuthService {
         id: user._id,
         email: user.email,
         name: user.name,
-        familyId: family._id.toString()
+        familyId: primaryFamily._id.toString(),
+        familyIds, // Allow client to know about all families
       },
       tokens
     };

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import { queryConfig, invalidateRelated } from '../services/queryClient';
+import { queryConfig } from '../services/queryClient';
 
 /**
  * Hook to fetch expenses for a family
@@ -43,7 +43,12 @@ export const useCreateExpense = () => {
       return data.data;
     },
     onSuccess: (_, variables) => {
-      invalidateRelated('expense');
+      // NOTE: invalidateRelated('expense') requires an id to do anything, so we
+      // invalidate the relevant query keys directly to guarantee the expense
+      // list, dashboard and analytics refresh after a mutation.
+      queryClient.invalidateQueries({ queryKey: ['expenses', variables.familyId] });
+      queryClient.invalidateQueries({ queryKey: ['analytics', variables.familyId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', variables.familyId] });
     },
   });
 };
@@ -60,7 +65,10 @@ export const useUpdateExpense = () => {
       return data.data;
     },
     onSuccess: (_, variables) => {
-      invalidateRelated('expense');
+      queryClient.invalidateQueries({ queryKey: ['expenses', variables.familyId] });
+      queryClient.invalidateQueries({ queryKey: ['expenses', variables.familyId, variables.expenseId] });
+      queryClient.invalidateQueries({ queryKey: ['analytics', variables.familyId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', variables.familyId] });
     },
   });
 };
@@ -77,7 +85,9 @@ export const useDeleteExpense = () => {
       return data.data;
     },
     onSuccess: (_, variables) => {
-      invalidateRelated('expense');
+      queryClient.invalidateQueries({ queryKey: ['expenses', variables.familyId] });
+      queryClient.invalidateQueries({ queryKey: ['analytics', variables.familyId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', variables.familyId] });
     },
   });
 };

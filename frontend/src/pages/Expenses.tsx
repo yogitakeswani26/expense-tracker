@@ -1,8 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import api from '../services/api';
 import { useAuthStore } from '../stores/authStore';
-import { Expense } from '../types';
+import { Expense, ExpenseFilters } from '../types';
 import CategorySelector from '../components/CategorySelector';
+import AdvancedFilters from '../components/AdvancedFilters';
+import { createEmptyFilters, filterExpenses } from '../utils/expenseFilters';
 
 interface CategoryData {
   _id: string;
@@ -28,9 +30,21 @@ export default function Expenses() {
     date: new Date().toISOString().split('T')[0],
   });
   const [error, setError] = useState('');
+  const [filters, setFilters] = useState<ExpenseFilters>(createEmptyFilters());
   const isMountedRef = useRef(true);
 
   const familyId = useAuthStore((state) => state.familyId);
+
+  // Distinct category names actually present in the loaded expenses,
+  // used to populate the AdvancedFilters category checklist.
+  const categoryOptions = useMemo(
+    () => Array.from(new Set(expenses.map((e) => e.category).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [expenses]
+  );
+
+  // Client-side filtering keeps this in sync without requiring backend
+  // support for multi-category / multi-payment-method query params.
+  const filteredExpenses = useMemo(() => filterExpenses(expenses, filters), [expenses, filters]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -163,6 +177,17 @@ export default function Expenses() {
 
         {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg">{error}</div>}
 
+        {!loading && expenses.length > 0 && (
+          <AdvancedFilters
+            filters={filters}
+            onChange={setFilters}
+            categoryOptions={categoryOptions}
+            resultCount={filteredExpenses.length}
+            totalCount={expenses.length}
+            className="mb-6"
+          />
+        )}
+
         {/* Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -269,8 +294,21 @@ export default function Expenses() {
                       No expenses yet. Add one to get started!
                     </td>
                   </tr>
+                ) : filteredExpenses.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-600">
+                      No expenses match the selected filters.
+                      <button
+                        type="button"
+                        onClick={() => setFilters(createEmptyFilters())}
+                        className="ml-2 text-blue-600 hover:text-blue-800 font-semibold underline"
+                      >
+                        Clear filters
+                      </button>
+                    </td>
+                  </tr>
                 ) : (
-                  expenses.map((expense) => (
+                  filteredExpenses.map((expense) => (
                     <tr key={expense._id} className="border-b hover:bg-gray-50">
                       <td className="px-6 py-3 text-sm">{expense.description}</td>
                       <td className="px-6 py-3 text-sm">{expense.category}</td>

@@ -17,6 +17,7 @@ export const AdvancedLayout: React.FC<AdvancedLayoutProps> = ({ children }) => {
     { path: '/expenses', icon: '💳', label: 'Expenses', color: '#06b6d4' },
     { path: '/family', icon: '👨‍👩‍👧‍👦', label: 'Family', color: '#8b5cf6' },
     { path: '/bill-split', icon: '💰', label: 'Bill Split', color: '#f59e0b' },
+    { path: '/budgets', icon: '🎯', label: 'Budgets', color: '#10b981' },
     { path: '/profile', icon: '👤', label: 'Profile', color: '#10b981' },
     { path: '/analytics', icon: '📊', label: 'Analytics', color: '#06b6d4' },
     { path: '/export', icon: '📥', label: 'Export', color: '#ef4444' },

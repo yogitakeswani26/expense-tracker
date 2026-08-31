@@ -1,60 +1,129 @@
-import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import React, { useMemo, useState } from 'react';
 import AdvancedLayout from '../components/AdvancedLayout';
+import ExpenseModal, { ExpenseModalMode } from '../components/ExpenseModal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useAuthStore } from '../stores/authStore';
+import { useExpenses, useDeleteExpense } from '../hooks/useExpenses';
+import { Expense } from '../types';
+import { formatCurrency, formatDate, getErrorMessage } from '../utils/helpers';
+import { getCategoryEmoji } from '../utils/categoryEmojis';
 import '../styles/global-advanced.css';
 
-interface Expense {
-  _id: string;
-  description: string;
-  category: string;
-  amount: number;
-  date: string;
-  paidBy?: string;
-}
-
-const categoryEmojis: Record<string, string> = {
-  'Food': '🍔', 'Transport': '🚗', 'Entertainment': '🎬', 'Shopping': '🛍️',
-  'Bills': '📄', 'Health': '🏥', 'Travel': '✈️', 'Education': '📚',
-  'Netflix': '🎬', 'Uber': '🚗', 'Hotel & Accommodation': '🏨'
-};
+type SortOption = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
 
 export default function ExpensesAdvanced() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
+  const familyId = useAuthStore((s) => s.familyId);
+
+  const { data, isLoading, isError, error, refetch, isFetching } = useExpenses(familyId || '');
+  const deleteExpense = useDeleteExpense();
+
   const [filter, setFilter] = useState('');
-  const [sortBy, setSortBy] = useState('date-desc');
+  const [sortBy, setSortBy] = useState<SortOption>('date-desc');
 
-  useEffect(() => {
-    fetchExpenses();
-  }, []);
+  // Modal state
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [modalMode, setModalMode] = useState<ExpenseModalMode>('view');
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
 
-  const fetchExpenses = async () => {
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // `useExpenses` returns whatever the API responds with under `.data` — normalize
+  // it to an array whether the backend paginates (`{ expenses: [...] }`) or not.
+  const expenses: Expense[] = useMemo(() => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.expenses)) return data.expenses;
+    return [];
+  }, [data]);
+
+  const sortedExpenses = useMemo(() => {
+    const term = filter.trim().toLowerCase();
+    return [...expenses]
+      .filter(
+        (e) =>
+          !term ||
+          e.description?.toLowerCase().includes(term) ||
+          e.category?.toLowerCase().includes(term)
+      )
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'date-desc':
+            return new Date(b.date).getTime() - new Date(a.date).getTime();
+          case 'date-asc':
+            return new Date(a.date).getTime() - new Date(b.date).getTime();
+          case 'amount-desc':
+            return b.amount - a.amount;
+          case 'amount-asc':
+            return a.amount - b.amount;
+          default:
+            return 0;
+        }
+      });
+  }, [expenses, filter, sortBy]);
+
+  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const averageExpense = expenses.length > 0 ? totalExpenses / expenses.length : 0;
+
+  // ----- Modal handlers -----
+  const openView = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setModalMode('view');
+    setIsExpenseModalOpen(true);
+  };
+
+  const openEdit = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setModalMode('edit');
+    setIsExpenseModalOpen(true);
+  };
+
+  const openCreate = () => {
+    setSelectedExpense(null);
+    setModalMode('create');
+    setIsExpenseModalOpen(true);
+  };
+
+  const closeExpenseModal = () => {
+    setIsExpenseModalOpen(false);
+    setSelectedExpense(null);
+  };
+
+  const openDeleteConfirm = (expense: Expense) => {
+    setDeleteError(null);
+    setExpenseToDelete(expense);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deleteExpense.isPending) return;
+    setExpenseToDelete(null);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!expenseToDelete || !familyId) return;
+    setDeleteError(null);
     try {
-      setLoading(true);
-      const response = await api.get('/expenses');
-      setExpenses(response.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch expenses:', error);
-    } finally {
-      setLoading(false);
+      await deleteExpense.mutateAsync({ familyId, expenseId: expenseToDelete._id });
+      setExpenseToDelete(null);
+    } catch (err) {
+      setDeleteError(getErrorMessage(err));
     }
   };
 
-  const formatCurrency = (value: number) => `₹${value.toLocaleString('en-IN')}`;
-  const formatDate = (date: string) => new Date(date).toLocaleDateString('en-IN');
-
-  const sortedExpenses = [...expenses]
-    .filter(e => e.description.toLowerCase().includes(filter.toLowerCase()) || e.category.toLowerCase().includes(filter.toLowerCase()))
-    .sort((a, b) => {
-      if (sortBy === 'date-desc') return new Date(b.date).getTime() - new Date(a.date).getTime();
-      if (sortBy === 'date-asc') return new Date(a.date).getTime() - new Date(b.date).getTime();
-      if (sortBy === 'amount-desc') return b.amount - a.amount;
-      if (sortBy === 'amount-asc') return a.amount - b.amount;
-      return 0;
-    });
-
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const averageExpense = expenses.length > 0 ? totalExpenses / expenses.length : 0;
+  if (!familyId) {
+    return (
+      <AdvancedLayout>
+        <div className="page-header">
+          <h1>💳 Expense Management</h1>
+          <p>Track and manage all your expenses with advanced analytics</p>
+        </div>
+        <div className="glass-card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          ⚠️ No family selected. Join or create a family to start tracking expenses.
+        </div>
+      </AdvancedLayout>
+    );
+  }
 
   return (
     <AdvancedLayout>
@@ -104,7 +173,7 @@ export default function ExpensesAdvanced() {
             <select
               className="form-select"
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
             >
               <option value="date-desc">Latest First</option>
               <option value="date-asc">Oldest First</option>
@@ -112,17 +181,24 @@ export default function ExpensesAdvanced() {
               <option value="amount-asc">Lowest Amount</option>
             </select>
           </div>
-          <button className="btn btn-primary" onClick={fetchExpenses}>
-            🔄 Refresh
+          <button className="btn btn-primary" onClick={() => refetch()} disabled={isFetching}>
+            {isFetching ? '⏳ Refreshing…' : '🔄 Refresh'}
           </button>
         </div>
       </div>
 
       {/* Expenses Table */}
       <div className="glass-card">
-        {loading ? (
+        {isLoading ? (
           <div style={{ textAlign: 'center', padding: '40px', color: '#cbd5e1' }}>
             ⏳ Loading expenses...
+          </div>
+        ) : isError ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#fca5a5' }}>
+            ⚠️ {getErrorMessage(error)}
+            <div style={{ marginTop: '16px' }}>
+              <button className="btn btn-secondary" onClick={() => refetch()}>Try Again</button>
+            </div>
           </div>
         ) : sortedExpenses.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: '#cbd5e1' }}>
@@ -142,10 +218,10 @@ export default function ExpensesAdvanced() {
               </thead>
               <tbody>
                 {sortedExpenses.map((expense) => (
-                  <tr key={expense._id}>
+                  <tr key={expense._id} style={{ cursor: 'pointer' }} onClick={() => openView(expense)}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ fontSize: '1.3rem' }}>{categoryEmojis[expense.category] || '💳'}</span>
+                        <span style={{ fontSize: '1.3rem' }}>{getCategoryEmoji(expense.category)}</span>
                         <span style={{ fontWeight: '500' }}>{expense.description}</span>
                       </div>
                     </td>
@@ -165,12 +241,20 @@ export default function ExpensesAdvanced() {
                       {formatCurrency(expense.amount)}
                     </td>
                     <td style={{ color: '#cbd5e1' }}>{formatDate(expense.date)}</td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="btn btn-secondary" style={{ padding: '8px 12px', fontSize: '0.85rem' }}>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                          onClick={() => openEdit(expense)}
+                        >
                           ✏️ Edit
                         </button>
-                        <button className="btn btn-danger" style={{ padding: '8px 12px', fontSize: '0.85rem' }}>
+                        <button
+                          className="btn btn-danger"
+                          style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                          onClick={() => openDeleteConfirm(expense)}
+                        >
                           🗑️ Delete
                         </button>
                       </div>
@@ -195,9 +279,41 @@ export default function ExpensesAdvanced() {
           borderRadius: '12px',
           boxShadow: '0 10px 40px rgba(102, 126, 234, 0.4)',
         }}
+        onClick={openCreate}
       >
         ➕ Add Expense
       </button>
+
+      {/* View / Edit / Create Modal */}
+      <ExpenseModal
+        isOpen={isExpenseModalOpen}
+        onClose={closeExpenseModal}
+        expense={selectedExpense}
+        familyId={familyId}
+        initialMode={modalMode}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={!!expenseToDelete}
+        onClose={closeDeleteConfirm}
+        onConfirm={handleConfirmDelete}
+        title="Delete Expense?"
+        tone="danger"
+        confirmLabel="🗑️ Delete"
+        isLoading={deleteExpense.isPending}
+        error={deleteError}
+        message={
+          expenseToDelete ? (
+            <>
+              Are you sure you want to delete <strong>"{expenseToDelete.description}"</strong> (
+              {formatCurrency(expenseToDelete.amount)})? This action cannot be undone.
+            </>
+          ) : (
+            ''
+          )
+        }
+      />
     </AdvancedLayout>
   );
 }

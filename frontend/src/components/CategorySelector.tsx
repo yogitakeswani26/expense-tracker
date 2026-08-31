@@ -1,13 +1,8 @@
 import { useEffect, useState } from 'react';
 import api from '../services/api';
+import { CategoryNode, buildCategoryTree, getCategoryColor, getCategoryEmoji } from '../utils/categoryUtils';
 
-interface Category {
-  _id: string;
-  name: string;
-  emoji: string;
-  level: 1 | 2 | 3;
-  children?: Category[];
-}
+type Category = CategoryNode;
 
 interface CategorySelectorProps {
   value: string;
@@ -141,8 +136,9 @@ export default function CategorySelector({ value, onChange, onClose }: CategoryS
                 key={cat._id}
                 onClick={() => handleMainSelect(cat)}
                 className="p-3 text-left border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-500 transition"
+                style={{ borderLeftColor: getCategoryColor(cat.name), borderLeftWidth: 3 }}
               >
-                <div className="text-2xl">{cat.emoji}</div>
+                <div className="text-2xl">{getCategoryEmoji(cat.name, cat.emoji)}</div>
                 <div className="text-sm font-semibold text-gray-900 mt-1">{cat.name}</div>
               </button>
             ))}

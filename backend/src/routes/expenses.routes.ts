@@ -4,6 +4,7 @@ import { authMiddleware } from '../middleware/authMiddleware';
 import { AuthRequest } from '../types';
 import { Family } from '../models/Family';
 import { AppError } from '../middleware/errorHandler';
+import { validateObjectId } from '../utils/idValidator';
 
 const router = express.Router();
 
@@ -13,6 +14,14 @@ router.use(authMiddleware);
 const checkFamilyMembership = async (req: AuthRequest, res: Response, next: any) => {
   try {
     const familyId = req.params.familyId;
+
+    // ISSUE #7: Validate ObjectId before querying
+    try {
+      validateObjectId(familyId, 'familyId');
+    } catch (error: any) {
+      return res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+    }
+
     const family = await Family.findById(familyId);
 
     if (!family) {
@@ -61,8 +70,25 @@ router.get('/:familyId', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// SCALABILITY: cursor-based feed - use this instead of `GET /:familyId` for
+// infinite-scroll / "load more" UIs and for any family with a large expense
+// history. Pass the previous response's `nextCursor` as `?cursor=` to fetch
+// the next page; omit it for the first page. Constant-time regardless of
+// how deep into the history you page (see utils/pagination.ts).
+router.get('/:familyId/feed', async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await expenseService.getExpensesCursor(req.params.familyId as string, req.query);
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    res.status(error.statusCode || 400).json({ success: false, error: { code: error.code, message: error.message } });
+  }
+});
+
 router.get('/:familyId/:expenseId', async (req: AuthRequest, res: Response) => {
   try {
+    // ISSUE #7: Validate ObjectIds before querying
+    validateObjectId(req.params.expenseId, 'expenseId');
+
     const expense = await expenseService.getExpenseById(req.params.familyId as string, req.params.expenseId as string);
     res.json({ success: true, data: expense });
   } catch (error: any) {
@@ -72,6 +98,9 @@ router.get('/:familyId/:expenseId', async (req: AuthRequest, res: Response) => {
 
 router.put('/:familyId/:expenseId', async (req: AuthRequest, res: Response) => {
   try {
+    // ISSUE #7: Validate ObjectIds before querying
+    validateObjectId(req.params.expenseId, 'expenseId');
+
     const expense = await expenseService.updateExpense(req.params.familyId as string, req.params.expenseId as string, req.user!.userId, req.body);
     res.json({ success: true, data: expense });
   } catch (error: any) {
@@ -81,6 +110,9 @@ router.put('/:familyId/:expenseId', async (req: AuthRequest, res: Response) => {
 
 router.delete('/:familyId/:expenseId', async (req: AuthRequest, res: Response) => {
   try {
+    // ISSUE #7: Validate ObjectIds before querying
+    validateObjectId(req.params.expenseId, 'expenseId');
+
     const result = await expenseService.deleteExpense(req.params.familyId as string, req.params.expenseId as string, req.user!.userId);
     res.json({ success: true, data: result });
   } catch (error: any) {

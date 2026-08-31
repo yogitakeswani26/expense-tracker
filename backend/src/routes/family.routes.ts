@@ -3,6 +3,7 @@ import { familyService } from '../services/familyService';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { AuthRequest } from '../types';
 import { User } from '../models/User';
+import { validateObjectId } from '../utils/idValidator';
 
 const router = express.Router();
 
@@ -32,6 +33,9 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
 router.get('/:familyId', async (req: AuthRequest, res: Response) => {
   try {
+    // ISSUE #7: Validate ObjectId before querying
+    validateObjectId(req.params.familyId, 'familyId');
+
     const family = await familyService.getFamily(req.params.familyId as string);
     if (!family) {
       return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Family not found' } });
@@ -55,6 +59,9 @@ router.get('/:familyId', async (req: AuthRequest, res: Response) => {
 
 router.put('/:familyId', async (req: AuthRequest, res: Response) => {
   try {
+    // ISSUE #7: Validate ObjectId before querying
+    validateObjectId(req.params.familyId, 'familyId');
+
     const family = await familyService.updateFamily(req.params.familyId as string, req.user!.userId, req.body);
     res.json({ success: true, data: family });
   } catch (error: any) {
@@ -64,6 +71,9 @@ router.put('/:familyId', async (req: AuthRequest, res: Response) => {
 
 router.get('/:familyId/members', async (req: AuthRequest, res: Response) => {
   try {
+    // ISSUE #7: Validate ObjectId before querying
+    validateObjectId(req.params.familyId, 'familyId');
+
     const family = await familyService.getFamily(req.params.familyId as string);
     if (!family) {
       return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Family not found' } });
@@ -86,6 +96,9 @@ router.get('/:familyId/members', async (req: AuthRequest, res: Response) => {
 
 router.post('/:familyId/members', async (req: AuthRequest, res: Response) => {
   try {
+    // ISSUE #7: Validate ObjectId before querying
+    validateObjectId(req.params.familyId, 'familyId');
+
     const { email, userId, role = 'member' } = req.body;
 
     // Support both email and userId for adding members
@@ -104,6 +117,11 @@ router.post('/:familyId/members', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Either email or userId is required' } });
     }
 
+    // ISSUE #7: Validate userId if provided directly
+    if (userId) {
+      validateObjectId(userId, 'userId');
+    }
+
     const family = await familyService.addMember(req.params.familyId as string, req.user!.userId, memberUserId, role);
     res.status(201).json({ success: true, data: family });
   } catch (error: any) {
@@ -113,6 +131,10 @@ router.post('/:familyId/members', async (req: AuthRequest, res: Response) => {
 
 router.delete('/:familyId/members/:userId', async (req: AuthRequest, res: Response) => {
   try {
+    // ISSUE #7: Validate ObjectIds before querying
+    validateObjectId(req.params.familyId, 'familyId');
+    validateObjectId(req.params.userId, 'userId');
+
     const family = await familyService.removeMember(req.params.familyId as string, req.user!.userId, req.params.userId as string);
     res.json({ success: true, data: family });
   } catch (error: any) {
@@ -122,6 +144,10 @@ router.delete('/:familyId/members/:userId', async (req: AuthRequest, res: Respon
 
 router.put('/:familyId/members/:userId/role', async (req: AuthRequest, res: Response) => {
   try {
+    // ISSUE #7: Validate ObjectIds before querying
+    validateObjectId(req.params.familyId, 'familyId');
+    validateObjectId(req.params.userId, 'userId');
+
     const { role } = req.body;
     if (!role || !['owner', 'member', 'viewer'].includes(role)) {
       return res.status(400).json({ success: false, error: { code: 'INVALID_ROLE', message: 'Invalid role' } });
@@ -135,6 +161,9 @@ router.put('/:familyId/members/:userId/role', async (req: AuthRequest, res: Resp
 
 router.get('/:familyId/settlements', async (req: AuthRequest, res: Response) => {
   try {
+    // ISSUE #7: Validate ObjectId before querying
+    validateObjectId(req.params.familyId, 'familyId');
+
     const family = await familyService.getFamily(req.params.familyId as string);
     if (!family) {
       return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Family not found' } });
@@ -149,7 +178,8 @@ router.get('/:familyId/settlements', async (req: AuthRequest, res: Response) => 
     if (!isMember) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this family' } });
     }
-    const settlements = await familyService.getWhoOwesWho(req.params.familyId as string);
+    // ISSUE #4: Pass userId to service method for authorization check
+    const settlements = await familyService.getWhoOwesWho(req.params.familyId as string, req.user!.userId);
     res.json({ success: true, data: settlements });
   } catch (error: any) {
     console.error('Settlements error:', error);

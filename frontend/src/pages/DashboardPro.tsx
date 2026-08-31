@@ -5,6 +5,8 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
 import api from '../services/api';
+import { useAuthStore } from '../stores/authStore';
+import BudgetAlertBanner from '../components/BudgetAlertBanner';
 import './DashboardPro.css';
 
 interface Transaction {
@@ -32,6 +34,7 @@ const categoryIcons: Record<string, string> = {
 };
 
 export default function DashboardPro() {
+  const familyId = useAuthStore((state) => state.familyId);
   const [stats, setStats] = useState<DashboardStats>({
     totalSpent: 0, averageDaily: 0, comparison: 0, transactionCount: 0,
     categoryBreakdown: [], monthlyTrends: [], dailyBreakdown: []
@@ -201,6 +204,9 @@ export default function DashboardPro() {
           </div>
         </div>
       </section>
+
+      {/* Budget vs Actual + Over-Budget Alerts */}
+      {familyId && <BudgetAlertBanner familyId={familyId} />}
 
       {/* Advanced Charts Grid */}
       <section className="charts-grid">

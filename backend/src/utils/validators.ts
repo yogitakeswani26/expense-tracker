@@ -64,3 +64,41 @@ export const createBudgetSchema = z.object({
   period: z.enum(['monthly', 'yearly']),
   alertThreshold: z.number().min(0).max(100).optional(),
 });
+
+// ISSUE #14: Add comprehensive validation schemas for all inputs
+export const updateExpenseSchema = z.object({
+  description: z.string().min(1).optional(),
+  amount: z.number().positive().optional(),
+  category: z.string().optional(),
+  categoryId: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  date: z.string().or(z.date()).optional(),
+  splits: z.array(z.object({
+    userId: z.string(),
+    amount: z.number().positive(),
+  })).optional(),
+  paymentMethod: z.string().optional(),
+});
+
+export const updateFamilySchema = z.object({
+  name: z.string().min(1).optional(),
+  currency: z.string().optional(),
+  timezone: z.string().optional(),
+  avatar: z.string().optional(),
+});
+
+export const paginationSchema = z.object({
+  page: z.string().or(z.number()).optional().default('1'),
+  limit: z.string().or(z.number()).optional().default('20'),
+});
+
+export const expenseFiltersSchema = z.object({
+  category: z.string().optional(),
+  tag: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  minAmount: z.string().or(z.number()).optional(),
+  maxAmount: z.string().or(z.number()).optional(),
+  page: z.string().or(z.number()).optional().default('1'),
+  limit: z.string().or(z.number()).optional().default('20'),
+});

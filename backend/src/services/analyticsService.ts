@@ -1,9 +1,24 @@
 import { Expense } from '../models/Expense';
 import { Budget } from '../models/Budget';
+import { Family } from '../models/Family';
+import { AppError } from '../middleware/errorHandler';
 import mongoose from 'mongoose';
 
 export class AnalyticsService {
-  async getDashboardSummary(familyId: string) {
+  // ISSUE #4: Add userId parameter and verify authorization
+  async getDashboardSummary(familyId: string, userId: string) {
+    // Verify user is a family member
+    const family = await Family.findById(familyId);
+    if (!family) {
+      throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
+    }
+
+    // Ensure consistent string conversion (Issue #3)
+    const isMember = family.members.some(m => m.userId.toString() === userId);
+    if (!isMember) {
+      throw new AppError('UNAUTHORIZED', 'User is not a family member', 403);
+    }
+
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -96,7 +111,20 @@ export class AnalyticsService {
     };
   }
 
-  async getCategoryBreakdown(familyId: string, startDate: Date, endDate: Date) {
+  // ISSUE #4: Add userId parameter and verify authorization
+  async getCategoryBreakdown(familyId: string, userId: string, startDate: Date, endDate: Date) {
+    // Verify user is a family member
+    const family = await Family.findById(familyId);
+    if (!family) {
+      throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
+    }
+
+    // Ensure consistent string conversion (Issue #3)
+    const isMember = family.members.some(m => m.userId.toString() === userId);
+    if (!isMember) {
+      throw new AppError('UNAUTHORIZED', 'User is not a family member', 403);
+    }
+
     // OPTIMIZATION: Use single aggregation query instead of loading all documents into memory
     const results = await Expense.aggregate([
       {
@@ -131,7 +159,20 @@ export class AnalyticsService {
     }));
   }
 
-  async getMonthlyTrends(familyId: string, months: number = 12) {
+  // ISSUE #4: Add userId parameter and verify authorization
+  async getMonthlyTrends(familyId: string, userId: string, months: number = 12) {
+    // Verify user is a family member
+    const family = await Family.findById(familyId);
+    if (!family) {
+      throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
+    }
+
+    // Ensure consistent string conversion (Issue #3)
+    const isMember = family.members.some(m => m.userId.toString() === userId);
+    if (!isMember) {
+      throw new AppError('UNAUTHORIZED', 'User is not a family member', 403);
+    }
+
     const now = new Date();
     const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
 
@@ -168,7 +209,20 @@ export class AnalyticsService {
     return trends;
   }
 
-  async getBudgetStatus(familyId: string) {
+  // ISSUE #4: Add userId parameter and verify authorization
+  async getBudgetStatus(familyId: string, userId: string) {
+    // Verify user is a family member
+    const family = await Family.findById(familyId);
+    if (!family) {
+      throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
+    }
+
+    // Ensure consistent string conversion (Issue #3)
+    const isMember = family.members.some(m => m.userId.toString() === userId);
+    if (!isMember) {
+      throw new AppError('UNAUTHORIZED', 'User is not a family member', 403);
+    }
+
     const budgets = await Budget.find({ familyId });
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -208,7 +262,20 @@ export class AnalyticsService {
     });
   }
 
-  async getSpenderComparison(familyId: string, startDate: Date, endDate: Date) {
+  // ISSUE #4: Add userId parameter and verify authorization
+  async getSpenderComparison(familyId: string, userId: string, startDate: Date, endDate: Date) {
+    // Verify user is a family member
+    const family = await Family.findById(familyId);
+    if (!family) {
+      throw new AppError('FAMILY_NOT_FOUND', 'Family not found', 404);
+    }
+
+    // Ensure consistent string conversion (Issue #3)
+    const isMember = family.members.some(m => m.userId.toString() === userId);
+    if (!isMember) {
+      throw new AppError('UNAUTHORIZED', 'User is not a family member', 403);
+    }
+
     // OPTIMIZATION: Use aggregation with $lookup instead of populate and manual grouping
     const results = await Expense.aggregate([
       {

@@ -1,49 +1,77 @@
+import mongoose from 'mongoose';
 import { Expense } from '../models/Expense';
 import { Category } from '../models/Category';
 import { AppError } from '../middleware/errorHandler';
 import { createExpenseSchema } from '../utils/validators';
+import { buildCursorMatch, clampLimit, decodeCursor, paginateWithCursor } from '../utils/pagination';
+import { cacheService } from './cacheService';
 
 export class ExpenseService {
+  // ISSUE #5: Use transaction and lock to prevent race conditions
   async createExpense(familyId: string, userId: string, data: any) {
     const validation = createExpenseSchema.safeParse(data);
     if (!validation.success) {
       throw new AppError('VALIDATION_ERROR', validation.error.issues[0].message, 400);
     }
 
-    let expenseData: any = {
-      familyId,
-      ...validation.data,
-      paidBy: userId,
-      createdBy: userId,
-      date: new Date(validation.data.date),
-    };
+    // Use session for transaction
+    const session = await Expense.startSession();
+    session.startTransaction();
 
-    // Handle categoryId mapping
-    if (data.categoryId) {
-      try {
-        const category = await Category.findById(data.categoryId);
-        if (category) {
-          expenseData.categoryId = data.categoryId;
-          expenseData.category = category.name;
-        } else {
-          throw new AppError('CATEGORY_NOT_FOUND', 'Category not found', 404);
+    try {
+      let expenseData: any = {
+        familyId,
+        ...validation.data,
+        paidBy: userId,
+        createdBy: userId,
+        date: new Date(validation.data.date),
+      };
+
+      // Handle categoryId mapping
+      if (data.categoryId) {
+        try {
+          const category = await Category.findById(data.categoryId).session(session);
+          if (category) {
+            expenseData.categoryId = data.categoryId;
+            expenseData.category = category.name;
+          } else {
+            throw new AppError('CATEGORY_NOT_FOUND', 'Category not found', 404);
+          }
+        } catch (error: any) {
+          if (error instanceof AppError) throw error;
+          throw new AppError('CATEGORY_ERROR', 'Failed to load category', 400);
         }
-      } catch (error: any) {
-        if (error instanceof AppError) throw error;
-        throw new AppError('CATEGORY_ERROR', 'Failed to load category', 400);
+      } else if (!data.category) {
+        // Fallback to default category if neither is provided
+        expenseData.category = 'Miscellaneous';
       }
-    } else if (!data.category) {
-      // Fallback to default category if neither is provided
-      expenseData.category = 'Miscellaneous';
-    }
 
-    const expense = new Expense(expenseData);
-    await expense.save();
-    return expense.populate([
-      { path: 'paidBy', select: 'name email avatar' },
-      { path: 'splits.userId', select: 'name email' },
-      { path: 'categoryId', select: 'name icon color' }
-    ]);
+      const expense = new Expense(expenseData);
+      await expense.save({ session });
+
+      // Populate before committing
+      const savedExpense = await Expense.findById(expense._id)
+        .session(session)
+        .populate([
+          { path: 'paidBy', select: 'name email avatar' },
+          { path: 'splits.userId', select: 'name email' },
+          { path: 'categoryId', select: 'name icon color' }
+        ]);
+
+      await session.commitTransaction();
+
+      // CACHE INVALIDATION: a new expense changes analytics totals, trends
+      // and budget status for this family - invalidate so the next read
+      // recomputes instead of serving stale aggregates.
+      await cacheService.invalidateFamily(familyId);
+
+      return savedExpense;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 
   async getExpenses(familyId: string, filters: any = {}) {
@@ -130,6 +158,46 @@ export class ExpenseService {
     return { expenses, total, page, limit, pages: Math.ceil(total / limit) };
   }
 
+  /**
+   * Cursor-based listing for `GET /:familyId/feed`.
+   * See utils/pagination.ts for why this scales better than skip/limit at
+   * high offsets. Additive - does not replace getExpenses().
+   */
+  async getExpensesCursor(familyId: string, filters: any = {}) {
+    const matchStage: any = { familyId: new mongoose.Types.ObjectId(familyId) };
+
+    if (filters.category) matchStage.category = filters.category;
+    if (filters.tag) matchStage.tags = { $in: [filters.tag] };
+    if (filters.startDate || filters.endDate) {
+      matchStage.date = {};
+      if (filters.startDate) matchStage.date.$gte = new Date(filters.startDate);
+      if (filters.endDate) matchStage.date.$lte = new Date(filters.endDate);
+    }
+
+    const limit = clampLimit(filters.limit, 100, 20);
+    const cursor = decodeCursor(filters.cursor);
+    const cursorMatch = buildCursorMatch(cursor);
+
+    const finalMatch = cursor ? { $and: [matchStage, cursorMatch] } : matchStage;
+
+    // Fetch one extra document to know whether there's a next page, without a separate count query.
+    const expenses = await Expense.find(finalMatch)
+      .sort({ date: -1, _id: -1 })
+      .limit(limit + 1)
+      .populate('paidBy', 'name email avatar')
+      .populate('categoryId', 'name icon color')
+      .lean();
+
+    const page = paginateWithCursor(expenses as any, limit);
+
+    return {
+      expenses: page.items,
+      nextCursor: page.nextCursor,
+      hasMore: page.hasMore,
+      limit,
+    };
+  }
+
   async getExpenseById(familyId: string, expenseId: string) {
     const expense = await Expense.findOne({ _id: expenseId, familyId })
       .populate('paidBy', 'name email avatar')
@@ -145,12 +213,15 @@ export class ExpenseService {
     let updateData: any = { ...data, updatedAt: new Date() };
 
     // SECURITY: Verify user is the expense creator
+    // ISSUE #3: Ensure consistent string conversion
     const expense = await Expense.findOne({ _id: expenseId, familyId });
     if (!expense) {
       throw new AppError('EXPENSE_NOT_FOUND', 'Expense not found', 404);
     }
 
-    if (expense.createdBy.toString() !== userId) {
+    // Ensure both sides are converted to strings for comparison
+    const createdByStr = expense.createdBy.toString();
+    if (createdByStr !== userId) {
       throw new AppError('UNAUTHORIZED', 'Only the expense creator can update this expense', 403);
     }
 
@@ -179,6 +250,8 @@ export class ExpenseService {
       .populate('splits.userId', 'name email')
       .populate('categoryId', 'name icon color');
 
+    await cacheService.invalidateFamily(familyId);
+
     return updatedExpense;
   }
 
@@ -189,11 +262,16 @@ export class ExpenseService {
     }
 
     // SECURITY: Verify user is the expense creator
-    if (expense.createdBy.toString() !== userId) {
+    // ISSUE #3: Ensure consistent string conversion
+    const createdByStr = expense.createdBy.toString();
+    if (createdByStr !== userId) {
       throw new AppError('UNAUTHORIZED', 'Only the expense creator can delete this expense', 403);
     }
 
     const result = await Expense.findOneAndDelete({ _id: expenseId, familyId });
+
+    await cacheService.invalidateFamily(familyId);
+
     return { success: true };
   }
 

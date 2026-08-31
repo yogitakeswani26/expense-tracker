@@ -64,6 +64,37 @@ export const stopRateLimiterCleanup = () => {
 };
 
 /**
+ * Extract real client identifier for rate limiting
+ * ISSUE #13: Use per-user rate limiting instead of global
+ * Prefers authenticated user ID, falls back to IP address
+ */
+function getClientIdentifier(req: Request): string {
+  // If user is authenticated, use their ID for rate limiting
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    try {
+      const token = authHeader.split(' ')[1];
+      if (token) {
+        // Extract user ID from JWT token if possible
+        // This is a lightweight check - actual verification happens in auth middleware
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+          if (payload.userId) {
+            return `user:${payload.userId}`;
+          }
+        }
+      }
+    } catch (error) {
+      // Fall through to IP-based limiting
+    }
+  }
+
+  // Fall back to IP-based rate limiting
+  return `ip:${getClientIp(req)}`;
+}
+
+/**
  * Extract real client IP address, handling reverse proxies (Nginx, CloudFlare, etc.)
  */
 function getClientIp(req: Request): string {
@@ -84,27 +115,29 @@ function getClientIp(req: Request): string {
 /**
  * Sliding window rate limiter using timestamp tracking
  * More accurate than fixed window - tracks actual request times within rolling window
+ * ISSUE #13: Uses per-user rate limiting when authenticated, falls back to IP
  *
  * @param windowMs - Time window in milliseconds (default: 60 seconds)
  * @param maxRequests - Max requests allowed in window (default: 30)
  */
 export const rateLimiter = (windowMs: number = 60 * 1000, maxRequests: number = 30) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const clientIp = getClientIp(req);
+    // ISSUE #13: Use per-user identifier instead of just IP
+    const clientIdentifier = getClientIdentifier(req);
     const now = Date.now();
     const windowStart = now - windowMs;
 
-    // Initialize if first request from this IP
-    if (!store.has(clientIp)) {
-      store.set(clientIp, { timestamps: [{ timestamp: now }], lastAccessed: now });
+    // Initialize if first request from this identifier
+    if (!store.has(clientIdentifier)) {
+      store.set(clientIdentifier, { timestamps: [{ timestamp: now }], lastAccessed: now });
       res.setHeader('X-RateLimit-Limit', maxRequests);
       res.setHeader('X-RateLimit-Remaining', maxRequests - 1);
       res.setHeader('X-RateLimit-Reset', new Date(now + windowMs).toISOString());
       return next();
     }
 
-    // Get stored requests for this IP
-    const entry = store.get(clientIp);
+    // Get stored requests for this identifier
+    const entry = store.get(clientIdentifier);
     if (!entry) {
       res.setHeader('X-RateLimit-Limit', maxRequests);
       res.setHeader('X-RateLimit-Remaining', maxRequests - 1);
@@ -138,7 +171,7 @@ export const rateLimiter = (windowMs: number = 60 * 1000, maxRequests: number = 
 
     // Record current request and update last accessed
     requests.push({ timestamp: now });
-    store.set(clientIp, { timestamps: requests, lastAccessed: now });
+    store.set(clientIdentifier, { timestamps: requests, lastAccessed: now });
 
     res.setHeader('X-RateLimit-Limit', maxRequests);
     res.setHeader('X-RateLimit-Remaining', maxRequests - requests.length);
