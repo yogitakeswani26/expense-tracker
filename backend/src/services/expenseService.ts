@@ -47,17 +47,20 @@ export class ExpenseService {
   }
 
   async getExpenses(familyId: string, filters: any = {}) {
-    const query: any = { familyId };
+    const matchStage: any = { familyId: new (require('mongoose')).Types.ObjectId(familyId) };
 
-    if (filters.category) query.category = filters.category;
-    if (filters.tag) query.tags = { $in: [filters.tag] };
+    if (filters.category) matchStage.category = filters.category;
+    if (filters.tag) matchStage.tags = { $in: [filters.tag] };
     if (filters.startDate || filters.endDate) {
-      query.date = {};
-      if (filters.startDate) query.date.$gte = new Date(filters.startDate);
-      if (filters.endDate) query.date.$lte = new Date(filters.endDate);
+      matchStage.date = {};
+      if (filters.startDate) matchStage.date.$gte = new Date(filters.startDate);
+      if (filters.endDate) matchStage.date.$lte = new Date(filters.endDate);
     }
-    if (filters.minAmount) query.amount = { ...query.amount, $gte: filters.minAmount };
-    if (filters.maxAmount) query.amount = { ...query.amount, $lte: filters.maxAmount };
+    if (filters.minAmount || filters.maxAmount) {
+      matchStage.amount = {};
+      if (filters.minAmount) matchStage.amount.$gte = filters.minAmount;
+      if (filters.maxAmount) matchStage.amount.$lte = filters.maxAmount;
+    }
 
     // VALIDATION: Ensure page and limit are valid positive integers
     let page = parseInt(filters.page as string) || 1;
@@ -69,16 +72,60 @@ export class ExpenseService {
 
     const skip = (page - 1) * limit;
 
-    const expenses = await Expense.find(query)
-      .populate('paidBy', 'name email avatar')
-      .populate('splits.userId', 'name email')
-      .populate('createdBy', 'name email')
-      .populate('categoryId', 'name icon color')
-      .sort({ date: -1 })
-      .skip(skip)
-      .limit(limit);
+    // OPTIMIZATION: Use single aggregation query with $facet for both count and expenses
+    const results = await Expense.aggregate([
+      {
+        $facet: {
+          expenses: [
+            { $match: matchStage },
+            { $sort: { date: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'paidBy',
+                foreignField: '_id',
+                as: 'paidBy',
+              },
+            },
+            {
+              $unwind: {
+                path: '$paidBy',
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $project: {
+                paidBy: { name: '$paidBy.name', email: '$paidBy.email', avatar: '$paidBy.avatar', _id: '$paidBy._id' },
+                'splits.userId': 1,
+                createdBy: 1,
+                categoryId: 1,
+                description: 1,
+                amount: 1,
+                currency: 1,
+                category: 1,
+                tags: 1,
+                date: 1,
+                isRecurring: 1,
+                paymentMethod: 1,
+                receipt: 1,
+                createdAt: 1,
+                updatedAt: 1,
+                familyId: 1,
+              },
+            },
+          ],
+          total: [
+            { $match: matchStage },
+            { $count: 'count' },
+          ],
+        },
+      },
+    ]);
 
-    const total = await Expense.countDocuments(query);
+    const expenses = results[0].expenses;
+    const total = results[0].total[0]?.count || 0;
 
     return { expenses, total, page, limit, pages: Math.ceil(total / limit) };
   }
@@ -152,7 +199,27 @@ export class ExpenseService {
 
   async getCategories(familyId: string, limit: number = 100, skip: number = 0) {
     const defaultCategories = ['Food', 'Travel', 'Shopping', 'Bills', 'Entertainment', 'Healthcare', 'Utilities'];
-    const customCategories = await Category.find({ familyId }).limit(limit).skip(skip);
+
+    // OPTIMIZATION: Use single aggregation query instead of separate count and find
+    const results = await Category.aggregate([
+      {
+        $match: { familyId: new (require('mongoose')).Types.ObjectId(familyId) }
+      },
+      {
+        $facet: {
+          customCategories: [
+            { $skip: skip },
+            { $limit: limit },
+          ],
+          total: [
+            { $count: 'count' },
+          ],
+        },
+      },
+    ]);
+
+    const customCategories = results[0].customCategories;
+    const total = results[0].total[0]?.count || 0;
 
     const allCategories = [
       ...defaultCategories.map(name => ({
@@ -165,9 +232,8 @@ export class ExpenseService {
       ...customCategories,
     ];
 
-    const total = await Category.countDocuments({ familyId });
     return {
-      categories: allCategories.slice(skip, skip + limit),
+      categories: allCategories,
       total: defaultCategories.length + total,
       limit,
       skip,

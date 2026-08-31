@@ -1,63 +1,133 @@
 import { Expense } from '../models/Expense';
 import { Budget } from '../models/Budget';
+import mongoose from 'mongoose';
 
 export class AnalyticsService {
   async getDashboardSummary(familyId: string) {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    const thisMonthExpenses = await Expense.find({
-      familyId,
-      date: { $gte: monthStart, $lte: monthEnd },
-    });
+    // OPTIMIZATION: Use single aggregation query with $facet to get both this month and last month data
+    const results = await Expense.aggregate([
+      {
+        $facet: {
+          thisMonth: [
+            {
+              $match: {
+                familyId: new mongoose.Types.ObjectId(familyId),
+                date: { $gte: monthStart, $lte: monthEnd },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                totalSpent: { $sum: '$amount' },
+                transactionCount: { $sum: 1 },
+              },
+            },
+          ],
+          lastMonth: [
+            {
+              $match: {
+                familyId: new mongoose.Types.ObjectId(familyId),
+                date: { $gte: lastMonthStart, $lte: lastMonthEnd },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                totalSpent: { $sum: '$amount' },
+              },
+            },
+          ],
+          categoryBreakdown: [
+            {
+              $match: {
+                familyId: new mongoose.Types.ObjectId(familyId),
+                date: { $gte: monthStart, $lte: monthEnd },
+              },
+            },
+            {
+              $group: {
+                _id: '$category',
+                total: { $sum: '$amount' },
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                totalAmount: { $sum: '$total' },
+                categories: { $push: { category: '$_id', total: '$total', count: '$count' } },
+              },
+            },
+          ],
+        },
+      },
+    ]);
 
-    const totalSpent = thisMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
-    // Fix: Calculate average daily by dividing by days in month, not expense count
+    const thisMonth = results[0].thisMonth[0] || { totalSpent: 0, transactionCount: 0 };
+    const lastMonth = results[0].lastMonth[0] || { totalSpent: 0 };
+    const categoryData = results[0].categoryBreakdown[0] || { categories: [], totalAmount: 0 };
+
+    const totalSpent = thisMonth.totalSpent;
+    const transactionCount = thisMonth.transactionCount;
+    const lastMonthTotal = lastMonth.totalSpent;
     const daysInMonth = monthEnd.getDate();
     const averageDaily = totalSpent / daysInMonth;
 
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-    const lastMonthExpenses = await Expense.find({
-      familyId,
-      date: { $gte: lastMonthStart, $lte: lastMonthEnd },
-    });
-    const lastMonthTotal = lastMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
-
-    const categoryBreakdown = await this.getCategoryBreakdown(familyId, monthStart, monthEnd);
+    // Calculate category breakdown with percentage
+    const categoryBreakdown = categoryData.categories.map((cat: any) => ({
+      category: cat.category,
+      total: cat.total,
+      count: cat.count,
+      percentage: categoryData.totalAmount > 0 ? (cat.total / categoryData.totalAmount * 100).toFixed(2) : '0',
+    }));
 
     return {
       totalSpent,
       averageDaily,
       comparison: lastMonthTotal > 0 ? ((totalSpent - lastMonthTotal) / lastMonthTotal * 100).toFixed(2) : '0',
       categoryBreakdown,
-      transactionCount: thisMonthExpenses.length,
+      transactionCount,
     };
   }
 
   async getCategoryBreakdown(familyId: string, startDate: Date, endDate: Date) {
-    const expenses = await Expense.find({
-      familyId,
-      date: { $gte: startDate, $lte: endDate },
-    });
+    // OPTIMIZATION: Use single aggregation query instead of loading all documents into memory
+    const results = await Expense.aggregate([
+      {
+        $match: {
+          familyId: new mongoose.Types.ObjectId(familyId),
+          date: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: '$category',
+          total: { $sum: '$amount' },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$total' },
+          categories: { $push: { category: '$_id', total: '$total', count: '$count' } },
+        },
+      },
+    ]);
 
-    const breakdown: any = {};
-    const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const result = results[0] || { categories: [], totalAmount: 0 };
 
-    expenses.forEach(expense => {
-      if (!breakdown[expense.category]) {
-        breakdown[expense.category] = { total: 0, count: 0 };
-      }
-      breakdown[expense.category].total += expense.amount;
-      breakdown[expense.category].count += 1;
-    });
-
-    return Object.entries(breakdown).map(([category, data]: any) => ({
-      category,
-      total: data.total,
-      count: data.count,
-      percentage: totalAmount > 0 ? (data.total / totalAmount * 100).toFixed(2) : '0',
+    return result.categories.map((cat: any) => ({
+      category: cat.category,
+      total: cat.total,
+      count: cat.count,
+      percentage: result.totalAmount > 0 ? (cat.total / result.totalAmount * 100).toFixed(2) : '0',
     }));
   }
 
@@ -69,7 +139,7 @@ export class AnalyticsService {
     const results = await Expense.aggregate([
       {
         $match: {
-          familyId: new (require('mongoose')).Types.ObjectId(familyId),
+          familyId: new mongoose.Types.ObjectId(familyId),
           date: { $gte: startDate },
         },
       },
@@ -108,7 +178,7 @@ export class AnalyticsService {
     const spendingByCategory = await Expense.aggregate([
       {
         $match: {
-          familyId: new (require('mongoose')).Types.ObjectId(familyId),
+          familyId: new mongoose.Types.ObjectId(familyId),
           date: { $gte: monthStart, $lte: monthEnd },
         },
       },
@@ -139,22 +209,47 @@ export class AnalyticsService {
   }
 
   async getSpenderComparison(familyId: string, startDate: Date, endDate: Date) {
-    const expenses = await Expense.find({
-      familyId,
-      date: { $gte: startDate, $lte: endDate },
-    }).populate('paidBy');
+    // OPTIMIZATION: Use aggregation with $lookup instead of populate and manual grouping
+    const results = await Expense.aggregate([
+      {
+        $match: {
+          familyId: new mongoose.Types.ObjectId(familyId),
+          date: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: '$paidBy',
+          total: { $sum: '$amount' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userDetails',
+        },
+      },
+      {
+        $unwind: {
+          path: '$userDetails',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          name: { $ifNull: ['$userDetails.name', 'Unknown'] },
+          total: 1,
+        },
+      },
+      {
+        $sort: { total: -1 },
+      },
+    ]);
 
-    const spenders: any = {};
-
-    expenses.forEach((expense: any) => {
-      const spender = expense.paidBy._id.toString();
-      if (!spenders[spender]) {
-        spenders[spender] = { name: (expense.paidBy as any).name, total: 0 };
-      }
-      spenders[spender].total += expense.amount;
-    });
-
-    return Object.entries(spenders).map(([, data]: any) => data).sort((a, b) => b.total - a.total);
+    return results;
   }
 }
 

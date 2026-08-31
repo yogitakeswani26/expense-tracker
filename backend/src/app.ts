@@ -16,6 +16,7 @@ import { sanitizer } from './middleware/sanitizer';
 // SAFEGUARD IMPORTS - Phase 1: Foundation
 import { monitoringService, startMetricsCollection } from './services/monitoringService';
 import { optimizeDatabase, ensureIndexes, setupQueryMonitoring, startConnectionHealthCheck, monitorMemoryPressure } from './config/databaseOptimization';
+import { connectDB } from './config/database';
 
 // SAFEGUARD IMPORTS - Phase 2: Core Protection
 import { idempotencyHandler, duplicateDetectionMiddleware } from './middleware/idempotencyHandler';
@@ -58,6 +59,32 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // ============================================================================
 app.use(helmet());
 app.use(requestLogger);
+
+// ============================================================================
+// PERFORMANCE OPTIMIZATION MIDDLEWARE
+// ============================================================================
+// Add HTTP caching headers for public endpoints
+app.use((req: Request, res: Response, next: NextFunction) => {
+  // Cache analytics and category endpoints for 5 minutes
+  if (req.path.includes('/analytics') || req.path.includes('/categories')) {
+    res.set('Cache-Control', 'public, max-age=300');
+  }
+  // Cache health check endpoints for 30 seconds
+  if (req.path.includes('/health')) {
+    res.set('Cache-Control', 'public, max-age=30');
+  }
+  // Don't cache expense mutations
+  if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  }
+  next();
+});
+
+// Initialize query monitoring after database connection is established
+if (config.nodeEnv === 'production' || config.nodeEnv === 'development') {
+  setupQueryMonitoring();
+  console.log('✅ Query monitoring initialized');
+}
 
 const allowedOrigins = [
   config.frontend.url,

@@ -49,12 +49,18 @@ const expenseSchema = new Schema<IExpenseDoc>({
   updatedAt: { type: Date, default: Date.now },
 });
 
-expenseSchema.index({ familyId: 1, date: -1 });
-expenseSchema.index({ familyId: 1, categoryId: 1, date: -1 });
-expenseSchema.index({ paidBy: 1 });
-expenseSchema.index({ createdBy: 1 });
-expenseSchema.index({ categoryId: 1 });
-expenseSchema.index({ category: 1 });
-expenseSchema.index({ familyId: 1, isRecurring: 1 }); // Index for recurring expense queries
+// OPTIMIZATION: Strategic compound indexes for common queries
+expenseSchema.index({ familyId: 1, date: -1 }); // Primary query: get expenses by family, sorted by date
+expenseSchema.index({ familyId: 1, category: 1, date: -1 }); // Filter by category
+expenseSchema.index({ familyId: 1, categoryId: 1, date: -1 }); // Filter by categoryId
+expenseSchema.index({ familyId: 1, paidBy: 1, date: -1 }); // Spender comparison queries
+expenseSchema.index({ familyId: 1, createdBy: 1, date: -1 }); // User's own expenses
+expenseSchema.index({ familyId: 1, date: 1 }); // Range queries on date
+expenseSchema.index({ paidBy: 1 }); // Direct lookup
+expenseSchema.index({ createdBy: 1 }); // Direct lookup
+expenseSchema.index({ categoryId: 1 }); // Direct lookup
+expenseSchema.index({ category: 1 }); // Direct lookup
+expenseSchema.index({ familyId: 1, isRecurring: 1, date: -1 }); // Recurring expense queries
+expenseSchema.index({ familyId: 1, tags: 1, date: -1 }); // Tag filtering
 
 export const Expense = mongoose.model<IExpenseDoc>('Expense', expenseSchema);

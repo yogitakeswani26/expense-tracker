@@ -33,13 +33,18 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 router.get('/:familyId', async (req: AuthRequest, res: Response) => {
   try {
     const family = await familyService.getFamily(req.params.familyId as string);
-    const isMember = family.members.some((m: any) => m.userId.toString() === req.user!.userId);
+    if (!family) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Family not found' } });
+    }
+    const isMember = family.members && family.members.some((m: any) => m.userId && m.userId.toString() === req.user!.userId);
     if (!isMember) {
+      console.log(`User ${req.user!.userId} not member of family ${req.params.familyId}. Members:`, family.members);
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this family' } });
     }
     res.json({ success: true, data: family });
   } catch (error: any) {
-    res.status(error.statusCode || 500).json({ success: false, error: { code: error.code, message: error.message } });
+    console.error('Family get error:', error);
+    res.status(error.statusCode || 500).json({ success: false, error: { code: error.code || 'ERROR', message: error.message } });
   }
 });
 
