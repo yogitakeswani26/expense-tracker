@@ -103,7 +103,7 @@ router.get('/:familyId/json', async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.get('/:familyId/monthly-report', async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:familyId/monthly-report', async (req: AuthRequest, res: Response): Promise<any> => {
   try {
     const { familyId } = req.params as { familyId: string };
     const { month, year } = req.query;
@@ -145,7 +145,7 @@ router.get('/:familyId/monthly-report', async (req: AuthRequest, res: Response):
   }
 });
 
-router.get('/:familyId/yearly-report', async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:familyId/yearly-report', async (req: AuthRequest, res: Response): Promise<any> => {
   try {
     const { familyId } = req.params as { familyId: string };
     const { year } = req.query;
